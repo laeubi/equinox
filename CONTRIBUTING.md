@@ -1,5 +1,7 @@
 # Contributing to Eclipse Equinox
 
+Test the action
+
 Thanks for your interest in this project.
 
 ## Project description
