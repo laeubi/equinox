@@ -83,7 +83,7 @@ jobs:
           commit:       ${{ github.event.workflow_run.head_sha }}
           junit_files:  artifacts/**/tck-results/${{ matrix.tck.pattern }}
           comment_mode: off
-          check_name:   ${{ matrix.tck.label }} TCK Results
+          check_name:   ${{ matrix.tck.label }} TCK
           event_name:   ${{ github.event.workflow_run.event }}
           event_file:   artifacts/Event File/event.json
       - name: Set badge color of ${{ matrix.tck.name }}
