@@ -18,22 +18,58 @@
  */
 package org.apache.felix.resolver;
 
-import java.security.*;
-import java.util.*;
+import java.io.PrintWriter;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.*;
+import java.util.Queue;
+import java.util.Set;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.felix.resolver.reason.ReasonException;
 import org.apache.felix.resolver.util.ArrayMap;
 import org.apache.felix.resolver.util.CandidateSelector;
 import org.apache.felix.resolver.util.OpenHashMap;
-import org.osgi.framework.namespace.*;
-import org.osgi.resource.*;
-import org.osgi.service.resolver.*;
+import org.osgi.framework.namespace.BundleNamespace;
+import org.osgi.framework.namespace.ExecutionEnvironmentNamespace;
+import org.osgi.framework.namespace.HostNamespace;
+import org.osgi.framework.namespace.IdentityNamespace;
+import org.osgi.framework.namespace.PackageNamespace;
+import org.osgi.resource.Capability;
+import org.osgi.resource.Namespace;
+import org.osgi.resource.Requirement;
+import org.osgi.resource.Resource;
+import org.osgi.resource.Wire;
+import org.osgi.resource.Wiring;
+import org.osgi.service.resolver.HostedCapability;
+import org.osgi.service.resolver.ResolutionException;
+import org.osgi.service.resolver.ResolveContext;
+import org.osgi.service.resolver.Resolver;
 
+/**
+ * @since 3.19
+ */
 public class ResolverImpl implements Resolver
 {
+	public static PrintWriter permWriter;
     private final AccessControlContext m_acc =
         System.getSecurityManager() != null ?
             AccessController.getContext() :
@@ -189,10 +225,17 @@ public class ResolverImpl implements Resolver
                             throw new IllegalArgumentException("Unknown permitation type: " + type);
                     }
                 } catch (IndexOutOfBoundsException e) {
+					e.printStackTrace();
                     // just a safeguard, this really should never happen
                     typeToAddTo.add(permutation);
                 }
             }
+			if (permWriter != null) {
+				permWriter.println(m_usesPermutations.size() + "," + m_importPermutations.size() + ","
+						+ m_substPermutations.size());
+			}
+//			System.out.println("[addPermutation] uses = " + m_usesPermutations.size() + ", imports = "
+//					+ m_importPermutations.size() + ", substitutions = " + m_substPermutations.size());
         }
 
         Candidates getNextPermutation() {
@@ -428,12 +471,14 @@ public class ResolverImpl implements Resolver
             retry = false;
             try
             {
+				System.out.println("ResolverImpl.doResolve(getInitialCandidates)");
                 getInitialCandidates(session);
                 if (session.getCurrentError() != null) {
                     throw session.getCurrentError().toException();
                 }
 
                 Map<Resource, ResolutionError> faultyResources = new HashMap<Resource, ResolutionError>();
+				System.out.println("ResolverImpl.doResolve(findValidCandidates)");
                 Candidates allCandidates = findValidCandidates(session, faultyResources);
                 session.checkForCancel();
 
@@ -457,6 +502,7 @@ public class ResolverImpl implements Resolver
                     {
                         m_logger.logUsesConstraintViolation(usesError.getKey(), usesError.getValue());
                     }
+					System.out.println("ResolverImpl.doResolve(retry=" + retry + ")");
                     if (!retry)
                     {
                         throw session.getCurrentError().toException();
@@ -553,20 +599,24 @@ public class ResolverImpl implements Resolver
             // Record the initial candidate permutation.
             session.addPermutation(PermutationType.USES, initialCandidates);
         }
+		System.out.println("==== Inital candidates ====");
+		initialCandidates.dump(session.getContext());
     }
 
     private Candidates findValidCandidates(ResolveSession session, Map<Resource, ResolutionError> faultyResources) {
         Candidates allCandidates = null;
         boolean foundFaultyResources = false;
+		int iter = 0;
         do
         {
+			System.out.println("findValidCandidates " + (iter++));
             allCandidates = session.getNextPermutation();
             if (allCandidates == null)
             {
                 break;
             }
 
-//allCandidates.dump();
+//			allCandidates.dump(session.getContext());
 
             Map<Resource, ResolutionError> currentFaultyResources = new HashMap<Resource, ResolutionError>();
 
