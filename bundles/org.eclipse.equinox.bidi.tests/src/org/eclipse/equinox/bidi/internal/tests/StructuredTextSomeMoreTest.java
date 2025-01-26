@@ -27,7 +27,7 @@ import org.junit.Test;
  */
 public class StructuredTextSomeMoreTest extends StructuredTextTestBase {
 
-	private class TestHandler1 extends StructuredTextTypeHandler {
+	private static class TestHandler1 extends StructuredTextTypeHandler {
 
 		public TestHandler1() {
 			// empty constructor
@@ -53,7 +53,7 @@ public class StructuredTextSomeMoreTest extends StructuredTextTestBase {
 		}
 	}
 
-	private class TestHandler2 extends StructuredTextTypeHandler {
+	private static class TestHandler2 extends StructuredTextTypeHandler {
 
 		public TestHandler2() {
 			// empty constructor
@@ -64,7 +64,7 @@ public class StructuredTextSomeMoreTest extends StructuredTextTestBase {
 		}
 	}
 
-	private class TestHandler3 extends StructuredTextTypeHandler {
+	private static class TestHandler3 extends StructuredTextTypeHandler {
 
 		public TestHandler3() {
 			// empty constructor
