@@ -233,7 +233,6 @@
 
   <build>
     <plugins>
-	          </plugin>
 			<plugin>
 				<groupId>org.eclipse.tycho</groupId>
 				<artifactId>tycho-cleancode-plugin</artifactId>
