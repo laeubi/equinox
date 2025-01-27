@@ -6,8 +6,7 @@ concurrency:
     cancel-in-progress: true
 
 on:
-  pull_request:
-    branches: [ master ]
+  workflow_dispatch:
 
 jobs:
   check-freeze-period:
