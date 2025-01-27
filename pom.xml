@@ -233,6 +233,39 @@
 
   <build>
     <plugins>
+	          </plugin>
+			<plugin>
+				<groupId>org.eclipse.tycho</groupId>
+				<artifactId>tycho-cleancode-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>cleanups</id>
+						<configuration>
+							<cleanUpProfile>
+								<!-- Make inner classes static where possible-->
+								<cleanup.static_inner_class>true</cleanup.static_inner_class>
+								<!-- Add missing annotations -->
+								<cleanup.add_missing_annotations>true</cleanup.add_missing_annotations>
+								<!-- Add missing '@Deprecated' annotations-->
+								<cleanup.add_missing_deprecated_annotations>true</cleanup.add_missing_deprecated_annotations>
+								<!-- Add missing '@Override' annotations to implementations of interface methods -->
+								<cleanup.add_missing_override_annotations>true</cleanup.add_missing_override_annotations>
+								<!-- Add missing '@Override' annotations to implementations of interface methods -->
+								<cleanup.add_missing_override_annotations_interface_methods>true</cleanup.add_missing_override_annotations_interface_methods>
+								<!-- Use 'final' where possible -->
+								<cleanup.make_variable_declarations_final>true</cleanup.make_variable_declarations_final>
+								<!-- Add final modifier to private fields -->
+								<cleanup.make_private_fields_final>true</cleanup.make_private_fields_final>
+								<!-- Replace deprecated calls with inlined content where possible -->
+								<cleanup.replace_deprecated_calls>true</cleanup.replace_deprecated_calls>
+							</cleanUpProfile>
+						</configuration>
+					</execution>
+				</executions>
+				<configuration>
+					<debug>true</debug>
+				</configuration>
+      </plugin>
       <plugin>
         <groupId>org.eclipse.tycho</groupId>
         <artifactId>tycho-source-plugin</artifactId>
