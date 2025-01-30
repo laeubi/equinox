@@ -101,6 +101,7 @@ public abstract class ModuleClassLoader extends ClassLoader implements BundleRef
 
 	private static final class ClassNameLock {
 		static final Function<String, ClassNameLock> SUPPLIER = new Function<String, ClassNameLock>() {
+			@Override
 			public ClassNameLock apply(String className) {
 				return new ClassNameLock(className);
 			}
@@ -201,6 +202,7 @@ public abstract class ModuleClassLoader extends ClassLoader implements BundleRef
 	}
 
 	// preparing for Java 9
+	@Override
 	protected Class<?> findClass(String moduleName, String name) {
 		try {
 			return findLocalClass(name);
@@ -244,6 +246,7 @@ public abstract class ModuleClassLoader extends ClassLoader implements BundleRef
 	}
 
 	// preparing for Java 9
+	@Override
 	protected URL findResource(String moduleName, String name) {
 		return findLocalResource(name);
 	}
