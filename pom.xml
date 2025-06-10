@@ -270,6 +270,79 @@
               </ignores>
           </configuration>
       </plugin>
+	    <plugin>
+          <groupId>org.eclipse.tycho</groupId>
+          <artifactId>tycho-cleancode-plugin</artifactId>
+          <version>${tycho.version}</version>
+        <executions>
+            <execution>
+                <id>cleanups</id>
+                <configuration>
+                    <cleanUpProfile>
+                        <!-- Make inner classes static where possible-->
+                        <cleanup.static_inner_class>true</cleanup.static_inner_class>
+                        <!-- Add missing annotations -->
+                        <cleanup.add_missing_annotations>true</cleanup.add_missing_annotations>
+                        <!-- Add missing '@Deprecated' annotations-->
+                        <cleanup.add_missing_deprecated_annotations>true</cleanup.add_missing_deprecated_annotations>
+                        <!-- Add missing '@Override' annotations to implementations of interface methods -->
+                        <cleanup.add_missing_override_annotations>true</cleanup.add_missing_override_annotations>
+                        <!-- Add missing '@Override' annotations to implementations of interface methods -->
+                        <cleanup.add_missing_override_annotations_interface_methods>true</cleanup.add_missing_override_annotations_interface_methods>
+                        <!-- Use 'final' where possible -->
+                        <cleanup.make_variable_declarations_final>true</cleanup.make_variable_declarations_final>
+                        <!-- Add final modifier to private fields -->
+                        <cleanup.make_private_fields_final>true</cleanup.make_private_fields_final>
+                        <!-- Replace deprecated calls with inlined content where possible -->
+                        <cleanup.replace_deprecated_calls>true</cleanup.replace_deprecated_calls>
+                        <!-- Convert control statement bodies to block -->
+                        <cleanup.use_blocks>true</cleanup.use_blocks>
+                        <cleanup.always_use_blocks>true</cleanup.always_use_blocks>
+                        <!-- Use pattern matching for instanceof -->
+                        <cleanup.instanceof>true</cleanup.instanceof>
+                        <!-- Remove unnecessary array creation -->
+                        <cleanup.remove_unnecessary_array_creation>true</cleanup.remove_unnecessary_array_creation>
+                        <!-- Remove unnecessary suppress warning tokens -->
+                        <cleanup.remove_unnecessary_suppress_warnings>true</cleanup.remove_unnecessary_suppress_warnings>
+						<!-- Remove unnecessary whitespace-->
+                        <cleanup.remove_trailing_whitespaces>true</cleanup.remove_trailing_whitespaces>
+                        <cleanup.remove_trailing_whitespaces_all>true</cleanup.remove_trailing_whitespaces_all>
+                        <cleanup.remove_trailing_whitespaces_ignore_empty>false</cleanup.remove_trailing_whitespaces_ignore_empty>
+                        <!-- Removes unused imports -->
+                        <cleanup.remove_unused_imports>true</cleanup.remove_unused_imports>
+                        <cleanup.organize_imports>false</cleanup.organize_imports>
+                    </cleanUpProfile>
+                </configuration>
+            </execution>
+            <execution>
+                <id>quickfixes</id>
+                <configuration>
+                    <baselines>
+                         <repository>
+                             <url>${previous-release.baseline}</url>
+                         </repository>
+                    </baselines>
+                    <bundles>
+                        <bundle>org.eclipse.ui.ide.application</bundle>
+                    </bundles>
+                    <application>org.eclipse.ui.ide.workbench</application>
+                    <quickfixes>
+                        <quickfix>org.eclipse.jdt.ui</quickfix>
+                        <quickfix>org.eclipse.pde.api.tools.ui</quickfix>
+                    </quickfixes>
+                </configuration>
+            </execution>
+            <execution>
+                <id>manifest</id>
+                <configuration>
+                    <calculateUses>true</calculateUses>
+                </configuration>
+            </execution>
+        </executions>
+          <configuration>
+                <local>true</local>
+            </configuration>
+        </plugin>
     </plugins>
     <pluginManagement>
       <plugins>
