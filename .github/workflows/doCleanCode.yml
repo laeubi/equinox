@@ -4,15 +4,14 @@ concurrency:
     cancel-in-progress: true
 on:
   workflow_dispatch:
-  schedule:
-    - cron:  '0 2 * * *'
 
 jobs:
   clean-code:
-    uses: eclipse-platform/eclipse.platform.releng.aggregator/.github/workflows/cleanCode.yml@master
+    uses: laeubi/eclipse.platform.releng.aggregator/.github/workflows/cleanCode.yml@add_manifest_cleanup_profile
     with:
       author: Eclipse Equinox Bot <equinox-bot@eclipse.org>
       do-quickfix: false
       do-cleanups: true
+      do-manifest: true
     secrets:
       token: ${{ secrets.EQUINOX_BOT_PAT }}
