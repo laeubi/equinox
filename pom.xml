@@ -275,6 +275,7 @@
                   <ignore>osgi/src/.*</ignore>
                   <ignore>felix/src_test/.*</ignore>
               </ignores>
+	      <removeUnusedDependencies>true</removeUnusedDependencies>
           </configuration>
       </plugin>
     </plugins>
