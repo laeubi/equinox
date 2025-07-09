@@ -10,8 +10,3 @@ Bundle-DocUrl: http://www.eclipse.org
 Bundle-ContactAddress: www.eclipse.org
 Bundle-RequiredExecutionEnvironment: JavaSE-1.8
 Automatic-Module-Name: org.eclipse.osgi.util
-Require-Bundle: org.osgi.util.function;bundle-version="[1.2.0,2.0.0)";visibility:=reexport,
- org.osgi.util.promise;bundle-version="[1.2.0,2.0.0)";visibility:=reexport,
- org.osgi.util.measurement;bundle-version="[1.0.0,2.0.0)";visibility:=reexport,
- org.osgi.util.position;bundle-version="[1.0.0,2.0.0)";visibility:=reexport,
- org.osgi.util.xml;bundle-version="[1.0.0,2.0.0)";visibility:=reexport
