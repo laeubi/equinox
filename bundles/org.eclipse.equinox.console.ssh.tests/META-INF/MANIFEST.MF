@@ -12,8 +12,6 @@ Import-Package: org.apache.sshd.client,
  org.apache.sshd.client.session,
  org.junit;version="4.8.1",
  org.mockito,
- org.mockito.stubbing,
- org.mockito.invocation,
  org.osgi.service.cm
 Fragment-Host: org.eclipse.equinox.console.ssh, org.eclipse.equinox.console
 Automatic-Module-Name: org.eclipse.equinox.console.ssh.tests
