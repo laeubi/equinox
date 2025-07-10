@@ -9,11 +9,8 @@ Bundle-Activator: org.eclipse.equinox.internal.jsp.jasper.registry.Activator
 Import-Package: org.eclipse.equinox.jsp.jasper,
  org.osgi.framework;version="1.3.0",
  org.osgi.service.packageadmin;version="1.2.0",
- org.osgi.util.tracker;version="[1.5.0,2)",
- javax.servlet;version="2.4",
- javax.servlet.http;version="2.4"
-Require-Bundle: org.eclipse.equinox.registry,
- org.eclipse.equinox.common
+ org.osgi.util.tracker;version="[1.5.0,2)"
+Require-Bundle: org.eclipse.equinox.registry
 Export-Package: org.eclipse.equinox.jsp.jasper.registry;version="1.0.0";uses:="org.eclipse.core.runtime"
 Bundle-RequiredExecutionEnvironment: JavaSE-17
 Bundle-ActivationPolicy: lazy
