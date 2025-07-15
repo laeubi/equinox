@@ -116,10 +116,10 @@ final class ModuleResolver {
 		DEBUG_ROOTS = debugAll || options.getBooleanOption(OPTION_ROOTS, false);
 		DEBUG_PROVIDERS = debugAll || options.getBooleanOption(OPTION_PROVIDERS, false);
 		DEBUG_HOOKS = debugAll || options.getBooleanOption(OPTION_HOOKS, false);
-		DEBUG_USES = debugAll || options.getBooleanOption(OPTION_USES, false);
+		DEBUG_USES = true;
 		DEBUG_WIRING = debugAll || options.getBooleanOption(OPTION_WIRING, false);
 		DEBUG_REPORT = debugAll || options.getBooleanOption(OPTION_REPORT, false);
-		DEBUG_PERMUTATIONS = debugAll || options.getBooleanOption(OPTION_PERMUTATION, false);
+		DEBUG_PERMUTATIONS = true;
 	}
 
 	static final Collection<String> NON_PAYLOAD_CAPABILITIES = Arrays.asList(IdentityNamespace.IDENTITY_NAMESPACE);
@@ -183,7 +183,12 @@ final class ModuleResolver {
 			ModuleDatabase moduleDatabase) {
 		ResolveProcess resolveProcess = new ResolveProcess(unresolved, triggers, triggersMandatory, wiringCopy,
 				moduleDatabase);
+		long now = System.currentTimeMillis();
+		try {
 		return resolveProcess.resolve();
+		} finally {
+			System.out.println("Resolve takes: " + (System.currentTimeMillis() - now));
+		}
 	}
 
 	ModuleResolutionReport resolveDynamicDelta(DynamicModuleRequirement dynamicReq,
@@ -492,7 +497,7 @@ final class ModuleResolver {
 					errors = new HashMap<>();
 				}
 				errors.put(resource, error.toException());
-				if (DEBUG_USES) {
+//				if (DEBUG_USES) {
 					ModuleResolver.this.adaptor.trace(OPTION_USES,
 							new StringBuilder("RESOLVER: Uses constraint violation") //$NON-NLS-1$
 									.append(SEPARATOR).append(TAB) //
@@ -504,7 +509,8 @@ final class ModuleResolver {
 									.append(SEPARATOR).append(TAB).append(TAB) //
 									.append(error.getMessage()) //
 									.toString());
-				}
+//				}
+					System.out.println("----");
 			}
 
 			public void logRequirement(String message, Requirement requirement) {
@@ -517,7 +523,8 @@ final class ModuleResolver {
 
 			@Override
 			public void logCandidates(Resource resource, Function<Requirement, List<Capability>> candidateLookup) {
-				if (DEBUG_USES) {
+//				System.out.println("ModuleResolver.ResolveProcess.ResolveLogger.logCandidates()");
+//				if (DEBUG_USES) {
 					Wiring wiring = getWirings().get(resource);
 					List<Requirement> reqs = (wiring != null) ? wiring.getResourceRequirements(null)
 							: resource.getRequirements(null);
@@ -530,7 +537,7 @@ final class ModuleResolver {
 							((wiring != null) ? "RESOLVED)" : "UNRESOLVED)"))); //$NON-NLS-1$ //$NON-NLS-2$
 					printRe(reqs, candidateLookup);
 					printRe(dreqs, candidateLookup);
-				}
+//				}
 			}
 
 			private String getMultiMarker(boolean hasMulti) {
@@ -581,13 +588,19 @@ final class ModuleResolver {
 
 			@Override
 			public boolean isDebugEnabled() {
-				return DEBUG_USES;
+				return true;
 			}
 
 			@Override
 			protected void doLog(int level, String msg, Throwable throwable) {
-				adaptor.trace(OPTION_RESOLVER, "RESOLVER: " + msg + SEPARATOR //$NON-NLS-1$
-						+ (throwable != null ? (TAB + TAB + throwable.getMessage()) : "")); //$NON-NLS-1$
+				System.out.println("RESOLVER: " + msg + SEPARATOR //$NON-NLS-1$
+						+ (throwable != null ? (TAB + TAB + throwable.getMessage()) : "")); //$NON-NLS-1$ );
+
+//				if (level == LOG_WARNING) {
+//					adaptor.trace(msg, msg);
+//				}
+//				adaptor.trace(OPTION_RESOLVER, "RESOLVER: " + msg + SEPARATOR //$NON-NLS-1$
+//						+ (throwable != null ? (TAB + TAB + throwable.getMessage()) : "")); //$NON-NLS-1$
 			}
 
 			@Override
@@ -1735,6 +1748,7 @@ final class ModuleResolver {
 			// Note that for each resolve Process we only want timeout the initial batch
 			// resolve
 			if (scheduleTimeout.compareAndSet(true, false)) {
+				System.out.println("Using batch timeout of " + resolverBatchTimeout);
 				ScheduledExecutorService scheduledExecutor = adaptor.getScheduledExecutor();
 				if (scheduledExecutor != null) {
 					try {

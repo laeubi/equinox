@@ -4366,6 +4366,14 @@ public class TestModuleContainer extends AbstractTest {
 		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 20);
 	}
 
+	@Test
+	public void testLocalUseConstraintViolations2() throws Exception {
+		ResolutionReport result = resolveTestSet("set2");
+		// TODO get down permutation count!
+		assertSucessfulWith(result, 1);
+		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 20);
+	}
+
 	private ResolutionReport resolveTestSet(String name) throws Exception {
 		Enumeration<URL> entries = getBundle().findEntries("/test_files/containerTests/" + name, "*.MF", false);
 		Map<Long, String> manifests = new TreeMap<>();

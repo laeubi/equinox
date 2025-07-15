@@ -202,6 +202,10 @@ public class ResolverImpl implements Resolver
         }
 
         void addPermutation(PermutationType type, Candidates permutation) {
+        	
+//        	permutation.
+        	
+//			logger.logCandidates(m_dynamicHost, null);
             if (permutation != null)
             {
                 List<Candidates> typeToAddTo = null;
@@ -375,6 +379,7 @@ public class ResolverImpl implements Resolver
 
         @Override
         public void run() {
+			logger.log(Logger.LOG_WARNING, "Resolve operation was canceled, results might be incomplete!");
             m_isCancelled = new CancellationException();
         }
 
@@ -548,6 +553,7 @@ public class ResolverImpl implements Resolver
     private void getInitialCandidates(ResolveSession session) {
         // Create object to hold all candidates.
         Candidates initialCandidates;
+		List<Resource> toPopulate = new ArrayList<Resource>();
         if (session.isDynamic()) {
             // Create all candidates pre-populated with the single candidate set
             // for the resolving dynamic import of the host.
@@ -558,7 +564,6 @@ public class ResolverImpl implements Resolver
                 return;
             }
         } else {
-            List<Resource> toPopulate = new ArrayList<Resource>();
 
             // Populate mandatory resources; since these are mandatory
             // resources, failure throws a resolve exception.
@@ -591,9 +596,49 @@ public class ResolverImpl implements Resolver
         }
         else
         {
+			System.out.println("======================== Initial Permutation =========================");
+			for (Resource resource : toPopulate) {
+				session.logger.logCandidates(resource, req -> {
+					List<Capability> list = initialCandidates.getCandidates(req);
+//				System.out.println("req: " + req + " list=" + list);
+					if (list == null) {
+						return Collections.emptyList();
+					}
+					return list;
+				});
+			}
+			System.out
+					.println("======================== Compute Initial candidate solutions =========================");
+			for (Resource resource : toPopulate) {
+				List<Requirement> requirements = resource.getRequirements(null);
+				for (Requirement requirement : requirements) {
+					List<Candidates> removeUsesViolations = ProblemReduction.removeUsesViolations(initialCandidates,
+							requirement, m_logger);
+//					List<Capability> list = initialCandidates.getCandidates(requirement);
+//					if (list != null && list.size() > 1) {
+//						System.out.println(resource + " has more than one candidate:");
+//						for (Capability capability : list) {
+//							System.out.println("\t" + capability);
+//						}
+//						List<Candidates> removeUsesViolations = ProblemReduction.reduce(initialCandidates,
+//								requirement, m_logger);
+//						System.out.println("Removed violators: " + removeUsesViolations);
+//					}
+				}
+				session.logger.logCandidates(resource, req -> {
+					List<Capability> list = initialCandidates.getCandidates(req);
+//				System.out.println("req: " + req + " list=" + list);
+					if (list == null) {
+						return Collections.emptyList();
+					}
+					return list;
+				});
+			}
+			System.out.println("=== ADD FINAL CANDIDATE!");
             // Record the initial candidate permutation.
             session.addPermutation(PermutationType.USES, initialCandidates);
         }
+
     }
 
     private Candidates findValidCandidates(ResolveSession session, Map<Resource, ResolutionError> faultyResources) {

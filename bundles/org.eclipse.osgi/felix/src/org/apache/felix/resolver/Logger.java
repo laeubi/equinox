@@ -149,6 +149,7 @@ public class Logger
             Function<Requirement, List<Capability>> candidateLookup) 
     {
         // do nothing by default
+		System.out.println("wtf??");
     }
 
     public void logRequirement(String message, Requirement requirement) 
