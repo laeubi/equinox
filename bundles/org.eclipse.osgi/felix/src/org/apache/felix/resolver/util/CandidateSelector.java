@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-
 import org.osgi.resource.Capability;
 
 public class CandidateSelector {
@@ -65,6 +64,9 @@ public class CandidateSelector {
         Capability current = getCurrentCandidate();
         if (current != null) {
             currentIndex += 1;
+			System.out.println("remove:         " + current);
+			Capability next = getCurrentCandidate();
+			System.out.println("next candidate: " + next);
         }
         return current;
     }

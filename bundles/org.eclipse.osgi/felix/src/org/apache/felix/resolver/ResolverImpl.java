@@ -20,7 +20,6 @@ package org.apache.felix.resolver;
 
 import java.security.AccessControlContext;
 import java.security.AccessController;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -38,8 +37,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.atomic.AtomicReference;
@@ -174,19 +171,27 @@ public class ResolverImpl implements Resolver
         }
 
         void permutateIfNeeded(PermutationType type, Requirement req, Candidates permutation) {
+			System.out.println("ResolverImpl.ResolveSession.permutateIfNeeded = [" + type + "] " + req);
             List<Capability> candidates = permutation.getCandidates(req);
             if ((candidates != null) && (candidates.size() > 1))
             {
                 if ((type == PermutationType.SUBSTITUTE)) {
                     if (!m_sub_mutated.add(req)) {
+						System.out.println("Already substitute permutated");
                         return;
                     }
                 } else if (!m_mutated.add(req)) {
+					System.out.println("Already mutated");
                     return;
                 }
+				// FIXME do not add "impossible" permutations
                 // If we haven't already permutated the existing
                 // import, do so now.
-                addPermutation(type, permutation.permutate(req));
+                Candidates permutate = permutation.permutate(req);
+				if (permutate.getCandidates(req).isEmpty()) {
+					System.out.println("No more canidates and req is optional = " + Util.isOptional(req));
+				}
+				addPermutation(type, permutate);
             }
         }
 
@@ -379,7 +384,8 @@ public class ResolverImpl implements Resolver
         }
 
         boolean isCancelled() {
-            return m_isCancelled != null;
+			// return m_isCancelled != null;
+			return false; // makes debugging to hard...
         }
 
         void checkForCancel() throws ResolutionException {
@@ -410,55 +416,80 @@ public class ResolverImpl implements Resolver
 
     public Map<Resource, List<Wire>> resolve(ResolveContext rc) throws ResolutionException
     {
-        if (m_executor != null)
-        {
-            return resolve(rc, m_executor);
-        }
-        else if (m_parallelism > 1)
-        {
-            final ExecutorService executor =
-                System.getSecurityManager() != null ?
-                    AccessController.doPrivileged(
-                        new PrivilegedAction<ExecutorService>()
-                        {
-                            public ExecutorService run()
-                            {
-                                return Executors.newFixedThreadPool(m_parallelism);
-                            }
-                        }, m_acc)
-                :
-                    Executors.newFixedThreadPool(m_parallelism);
-            try
-            {
-                return resolve(rc, executor);
-            }
-            finally
-            {
-                if (System.getSecurityManager() != null)
-                {
-                    AccessController.doPrivileged(new PrivilegedAction<Void>(){
-                        public Void run() {
-                            executor.shutdownNow();
-                            return null;
-                        }
-                    }, m_acc);
-                }
-                else
-                {
-                    executor.shutdownNow();
-                }
-            }
-        }
-        else
-        {
+//        if (m_executor != null)
+//        {
+//            return resolve(rc, m_executor);
+//        }
+//        else if (m_parallelism > 1)
+//        {
+//            final ExecutorService executor =
+//                System.getSecurityManager() != null ?
+//                    AccessController.doPrivileged(
+//                        new PrivilegedAction<ExecutorService>()
+//                        {
+//                            public ExecutorService run()
+//                            {
+//                                return Executors.newFixedThreadPool(m_parallelism);
+//                            }
+//                        }, m_acc)
+//                :
+//                    Executors.newFixedThreadPool(m_parallelism);
+//            try
+//            {
+//                return resolve(rc, executor);
+//            }
+//            finally
+//            {
+//                if (System.getSecurityManager() != null)
+//                {
+//                    AccessController.doPrivileged(new PrivilegedAction<Void>(){
+//                        public Void run() {
+//                            executor.shutdownNow();
+//                            return null;
+//                        }
+//                    }, m_acc);
+//                }
+//                else
+//                {
+//                    executor.shutdownNow();
+//                }
+//            }
+//        }
+//        else
+//        {
             return resolve(rc, new DumbExecutor());
-        }
+//        }
     }
 
     public Map<Resource, List<Wire>> resolve(ResolveContext rc, Executor executor) throws ResolutionException
     {
+		System.err.println("=== ResolverImpl.resolve() ===");
+		Thread.dumpStack();
+		System.err.println("--mandatory--");
+		for (Resource resource : rc.getMandatoryResources()) {
+			System.err.println(" - " + resource);
+		}
+		System.err.println("--optional--");
+		for (Resource resource : rc.getOptionalResources()) {
+			System.err.println(" - " + resource);
+		}
+		System.err.println("--existing--");
+		for (Entry<Resource, Wiring> entry : rc.getWirings().entrySet()) {
+			System.err.println(entry.getKey());
+		}
         ResolveSession session = ResolveSession.createSession(rc, executor, null, null, null, m_logger);
-        return doResolve(session);
+		System.err.println("Dynamic: " + session.isDynamic());
+		Map<Resource, List<Wire>> map = doResolve(session);
+		for (Entry<Resource, List<Wire>> entry : map.entrySet()) {
+			System.err.println(entry.getKey());
+			List<Wire> value = entry.getValue();
+			for (Wire wire : value) {
+				System.err.println("\t" + wire.getRequirement());
+				System.err.println("\t\t" + wire.getProvider() + " [" + wire.getCapability() + "]");
+			}
+		}
+		System.err.println("==============================");
+		return map;
     }
 
     private Map<Resource, List<Wire>> doResolve(ResolveSession session) throws ResolutionException {
@@ -485,11 +516,17 @@ public class ResolverImpl implements Resolver
                 if (session.getCurrentError() != null)
                 {
                     Set<Resource> resourceKeys = faultyResources.keySet();
+					System.out.println("Faulty resources: " + resourceKeys.size());
+					for (Entry<Resource, ResolutionError> resource : faultyResources.entrySet()) {
+						System.out.println("- " + resource.getKey() + ": " + resource.getValue());
+					}
                     retry = (session.getOptionalResources().removeAll(resourceKeys));
+					System.out.println("retry= " + retry);
                     for (Resource faultyResource : resourceKeys)
                     {
                         if (session.invalidateRelatedResource(faultyResource))
                         {
+							System.out.println("Invalidated " + faultyResource);
                             retry = true;
                         }
                     }
@@ -602,30 +639,31 @@ public class ResolverImpl implements Resolver
 					List<Candidates> removeUsesViolations = ProblemReduction
 							.removeInvalidPackageProvider(initialCandidates, requirement, m_logger);
 					if (removeUsesViolations.size() > 0) {
+						System.out.println("reduced: " + resource + " by " + removeUsesViolations.size());
 						removed.add(resource);
 					}
 				}
 			}
-			for (Resource resource : removed) {
-				session.logger.debug("======================== Reduced " + Util.getSymbolicName(resource)
-						+ " =========================");
-				session.logger.logCandidates(resource, req -> {
-					List<Capability> list = before.getCandidates(req);
-					if (list == null) {
-						return Collections.emptyList();
-					}
-					return list;
-				});
-				session.logger.debug("-- to ---");
-				session.logger.logCandidates(resource, req -> {
-					List<Capability> list = initialCandidates.getCandidates(req);
-					if (list == null) {
-						return Collections.emptyList();
-					}
-					return list;
-				});
-			}
-			session.logger.debug("======================== Start permutations =========================");
+//			for (Resource resource : removed) {
+//				session.logger.debug("======================== Reduced " + Util.getSymbolicName(resource)
+//						+ " =========================");
+//				session.logger.logCandidates(resource, req -> {
+//					List<Capability> list = before.getCandidates(req);
+//					if (list == null) {
+//						return Collections.emptyList();
+//					}
+//					return list;
+//				});
+//				session.logger.debug("-- to ---");
+//				session.logger.logCandidates(resource, req -> {
+//					List<Capability> list = initialCandidates.getCandidates(req);
+//					if (list == null) {
+//						return Collections.emptyList();
+//					}
+//					return list;
+//				});
+//			}
+//			session.logger.debug("======================== Start permutations =========================");
             // Record the initial candidate permutation.
             session.addPermutation(PermutationType.USES, initialCandidates);
         }
@@ -634,25 +672,80 @@ public class ResolverImpl implements Resolver
     private Candidates findValidCandidates(ResolveSession session, Map<Resource, ResolutionError> faultyResources) {
         Candidates allCandidates = null;
         boolean foundFaultyResources = false;
+		int cnt = 0;
+		List<Candidates> all = new ArrayList<>();
         do
         {
-            allCandidates = session.getNextPermutation();
-            if (allCandidates == null)
-            {
-                break;
-            }
+			int round = cnt++;
+			System.out.println("################## ResolverImpl.findValidCandidates(" + round + ")");
+			allCandidates = session.getNextPermutation();
+			if (allCandidates == null) {
+				System.out.println("++ Break out because we have no more candidates ++");
+				break;
+			}
+			Candidates current = allCandidates.copy();
+			all.add(current);
+//			Candidates current = allCandidates;
+//			for (Resource resource : session.getMandatoryResources()) {
+//				session.logger.debug("+ " + Util.getSymbolicName(resource));
+//				session.logger.logCandidates(resource, req -> {
+//					List<Capability> list = current.getCandidates(req);
+//					if (list == null) {
+//						return Collections.emptyList();
+//					}
+//					return list;
+//				});
+//			}
+//			for (Resource resource : session.getOptionalResources()) {
+//				session.logger.debug("* " + Util.getSymbolicName(resource));
+//				session.logger.logCandidates(resource, req -> {
+//					List<Capability> list = current.getCandidates(req);
+//					if (list == null) {
+//						return Collections.emptyList();
+//					}
+//					return list;
+//				});
+//			}
 
 //allCandidates.dump();
 
             Map<Resource, ResolutionError> currentFaultyResources = new HashMap<Resource, ResolutionError>();
 
-            session.setCurrentError(
-                    checkConsistency(
-                            session,
-                            allCandidates,
-                            currentFaultyResources
-                    )
-            );
+
+			ResolutionError consistencyError = checkConsistency(
+			        session,
+			        allCandidates,
+			        currentFaultyResources
+			);
+			if (consistencyError != null) {
+				System.out.println("--- resolve failed ---");
+				System.out.println(consistencyError.getMessage());
+				Collection<Requirement> unresolvedRequirements = consistencyError.getUnresolvedRequirements();
+				System.out.println("UNRESOLVED:");
+				Set<Resource> unresolved = new HashSet<>();
+				for (Requirement requirement : unresolvedRequirements) {
+					System.out.println("\t" + requirement);
+					unresolved.add(requirement.getResource());
+				}
+				for (Resource resource : unresolved) {
+					session.logger.debug("NOT RESOLVED[" + round + "] " + Util.getSymbolicName(resource));
+					session.logger.logCandidates(resource, req -> {
+						List<Capability> list = current.getCandidates(req);
+						if (list == null) {
+							return Collections.emptyList();
+						}
+						return list;
+					});
+				}
+			}
+			// TODO let the logger log it!!
+			session.setCurrentError(consistencyError);
+			if (currentFaultyResources.size() > 0) {
+				System.out.println("--current faulty:");
+				for (Entry<Resource, ResolutionError> entry : currentFaultyResources.entrySet()) {
+					System.out.println(entry.getKey() + ": " + entry.getValue());
+				}
+			}
 
             if (!currentFaultyResources.isEmpty())
             {
@@ -670,9 +763,40 @@ public class ResolverImpl implements Resolver
             }
         }
         while (!session.isCancelled() && session.getCurrentError() != null);
+		ResolutionError currentError = session.getCurrentError();
+		if (currentError != null) {
+			printUnresolved(session, all, currentError);
+		}
+		System.out.println(
+				"Return this set, Cancelled=" + session.isCancelled() + ", error=" + currentError);
 
         return allCandidates;
     }
+
+	protected void printUnresolved(ResolveSession session, List<Candidates> all, ResolutionError currentError) {
+		Collection<Requirement> unresolvedRequirements = currentError.getUnresolvedRequirements();
+		System.out.println("UNRESOLVED:");
+		Set<Resource> unresolved = new HashSet<>();
+		for (Requirement requirement : unresolvedRequirements) {
+			System.out.println("\t" + requirement);
+			unresolved.add(requirement.getResource());
+		}
+		for (int i = 0; i < all.size(); i++) {
+			Candidates candidates = all.get(i);
+			Candidates current = candidates;
+			for (Resource resource : unresolved) {
+				session.logger.debug("NOT RESOLVED[" + i + "] " + Util.getSymbolicName(resource));
+				session.logger.logCandidates(resource, req -> {
+					List<Capability> list = current.getCandidates(req);
+					if (list == null) {
+						return Collections.emptyList();
+					}
+					return list;
+				});
+			}
+		}
+	}
+
 
     private ResolutionError checkConsistency(
         ResolveSession session,
@@ -725,6 +849,7 @@ public class ResolverImpl implements Resolver
             Wiring hostWiring, Requirement dynamicRequirement)
             throws ResolutionException
     {
+		System.err.println("ResolverImpl.resolveDynamic()");
         Resource host = hostWiring.getResource();
         List<Capability> matches = context.findProviders(dynamicRequirement);
         // We can only create a dynamic import if the following

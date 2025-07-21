@@ -116,7 +116,7 @@ final class ModuleResolver {
 		DEBUG_ROOTS = debugAll || options.getBooleanOption(OPTION_ROOTS, false);
 		DEBUG_PROVIDERS = debugAll || options.getBooleanOption(OPTION_PROVIDERS, false);
 		DEBUG_HOOKS = debugAll || options.getBooleanOption(OPTION_HOOKS, false);
-		DEBUG_USES = debugAll || options.getBooleanOption(OPTION_USES, false);
+		DEBUG_USES = true;
 		DEBUG_WIRING = debugAll || options.getBooleanOption(OPTION_WIRING, false);
 		DEBUG_REPORT = debugAll || options.getBooleanOption(OPTION_REPORT, false);
 		DEBUG_PERMUTATIONS = debugAll || options.getBooleanOption(OPTION_PERMUTATION, false);
@@ -525,7 +525,8 @@ final class ModuleResolver {
 							? getDynamicRequirements(wiring.getResourceRequirements(null))
 							: getDynamicRequirements(resource.getRequirements(null));
 					boolean hasMulti = hasMulti(reqs, candidateLookup);
-					adaptor.trace(OPTION_USES, String.format("  %s%s (%s)", getMultiMarker(hasMulti), //$NON-NLS-1$
+					boolean hasAny = hasAny(reqs, candidateLookup);
+					adaptor.trace(OPTION_USES, String.format("  %s%s (%s)", getMultiMarker(hasMulti, !hasAny), //$NON-NLS-1$
 							ModuleContainer.toString(resource),
 							((wiring != null) ? "RESOLVED)" : "UNRESOLVED)"))); //$NON-NLS-1$ //$NON-NLS-2$
 					printRe(reqs, candidateLookup);
@@ -533,7 +534,10 @@ final class ModuleResolver {
 				}
 			}
 
-			private String getMultiMarker(boolean hasMulti) {
+			private String getMultiMarker(boolean hasMulti, boolean isempty) {
+				if (isempty) {
+					return "[x]"; //$NON-NLS-1$
+				}
 				return hasMulti ? "[?]" : "[!]"; //$NON-NLS-1$ //$NON-NLS-2$
 			}
 
@@ -547,17 +551,28 @@ final class ModuleResolver {
 				return false;
 			}
 
+			private boolean hasAny(List<Requirement> reqs, Function<Requirement, List<Capability>> candidateLookup) {
+				for (Requirement req : reqs) {
+					List<Capability> remaining = candidateLookup.apply(req);
+					if (remaining.size() >= 1) {
+						return true;
+					}
+				}
+				return false;
+			}
+
 			private int printRe(List<Requirement> reqs, Function<Requirement, List<Capability>> candidateLookup) {
 				int dup = 0;
 				for (Requirement req : reqs) {
 					List<Capability> remaining = candidateLookup.apply(req);
-						boolean hasMulti = remaining.size() > 1;
-							dup++;
-							adaptor.trace(OPTION_USES, MessageFormat.format("    {0}{1}: ", getMultiMarker(hasMulti), //$NON-NLS-1$
-									ModuleContainer.toString(req)));
-							for (Capability cap : remaining) {
-								adaptor.trace(OPTION_USES, String.format("        %s", ModuleContainer.toString(cap))); //$NON-NLS-1$
-							}
+					dup++;
+					adaptor.trace(OPTION_USES,
+							MessageFormat.format("    {0}{1}: ", //$NON-NLS-1$
+									getMultiMarker(remaining.size() > 1, remaining.isEmpty()), 
+							ModuleContainer.toString(req)));
+					for (Capability cap : remaining) {
+						adaptor.trace(OPTION_USES, String.format("        %s", ModuleContainer.toString(cap))); //$NON-NLS-1$
+					}
 				}
 				return dup;
 			}
@@ -1145,13 +1160,16 @@ final class ModuleResolver {
 				}
 			} catch (ResolutionException resolutionException) {
 				if (resolutionException.getCause() instanceof CancellationException) {
+					System.out.println("Fall back!"); // TODO we should log this case!
 					// revert back to single bundle resolves
 					resolveRevisionsIndividually(isMandatory, logger, result, resources, revisions);
 				} else {
+					System.out.println("---- failed to resolve --- throwing: " + resolutionException);
 					throw resolutionException;
 				}
 			} catch (OutOfMemoryError memoryError) {
 				// revert back to single bundle resolves
+				System.out.println("OOM!"); // TODO also this should be logged!
 				resolveRevisionsIndividually(isMandatory, logger, result, resources, revisions);
 			}
 

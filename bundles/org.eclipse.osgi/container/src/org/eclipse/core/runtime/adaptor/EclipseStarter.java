@@ -28,6 +28,7 @@ import java.security.ProtectionDomain;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Dictionary;
 import java.util.HashMap;
 import java.util.Hashtable;
@@ -40,7 +41,7 @@ import org.eclipse.core.runtime.internal.adaptor.ConsoleManager;
 import org.eclipse.core.runtime.internal.adaptor.DefaultStartupMonitor;
 import org.eclipse.core.runtime.internal.adaptor.EclipseAppLauncher;
 import org.eclipse.osgi.container.Module;
-import org.eclipse.osgi.container.ModuleRevision;
+import org.eclipse.osgi.container.ModuleContainer;
 import org.eclipse.osgi.container.namespaces.EquinoxModuleDataNamespace;
 import org.eclipse.osgi.framework.log.FrameworkLog;
 import org.eclipse.osgi.framework.log.FrameworkLogEntry;
@@ -76,7 +77,7 @@ import org.osgi.framework.launch.Framework;
 import org.osgi.framework.startlevel.BundleStartLevel;
 import org.osgi.framework.startlevel.FrameworkStartLevel;
 import org.osgi.framework.wiring.FrameworkWiring;
-import org.osgi.resource.Resource;
+import org.osgi.service.resolver.ResolutionException;
 import org.osgi.util.tracker.ServiceTracker;
 
 /**
@@ -469,17 +470,62 @@ public class EclipseStarter {
 			return appLauncher.reStart(argument);
 		} catch (Exception e) {
 			if (log != null && context != null) { // context can be null if OSGi failed to launch (bug 151413)
-				ResolutionReport report = context.getBundle().adapt(Module.class).getContainer().resolve(null, false);
-				for (Resource unresolved : report.getEntries().keySet()) {
-					String bsn = ((ModuleRevision) unresolved).getSymbolicName();
-					FrameworkLogEntry logEntry = new FrameworkLogEntry(bsn != null ? bsn : EquinoxContainer.NAME,
-							FrameworkLogEntry.WARNING, 0,
-							Msg.Module_ResolveError + report.getResolutionReportMessage(unresolved), 1, null, null);
-					log.log(logEntry);
+//				ModuleContainer container = context.getBundle().adapt(Module.class).getContainer();
+//				ResolutionReport report = container.resolve(null, false);
+//				for (Resource unresolved : report.getEntries().keySet()) {
+//					String bsn = ((ModuleRevision) unresolved).getSymbolicName();
+//					FrameworkLogEntry logEntry = new FrameworkLogEntry(bsn != null ? bsn : EquinoxContainer.NAME,
+//							FrameworkLogEntry.WARNING, 0,
+//							Msg.Module_ResolveError + report.getResolutionReportMessage(unresolved), 1, null, null);
+//					log.log(logEntry);
+//				}
+				System.out.println("---curent state ---");
+				Bundle[] bundles = context.getBundles();
+				for (Bundle bundle : bundles) {
+					System.out.println("[" + getState(bundle.getState()) + "] " + bundle.getSymbolicName());
 				}
+				System.out.println("-----");
+				for (Bundle bundle : bundles) {
+					int state = bundle.getState();
+					System.out.println("[" + getState(state) + "] " + bundle.getSymbolicName());
+					if (state == Bundle.INSTALLED) {
+						Module module = context.getBundle().adapt(Module.class);
+						ModuleContainer container = module.getContainer();
+						ResolutionReport report = container.resolve(Collections.singleton(module), false);
+						ResolutionException exception = report.getResolutionException();
+						if (exception != null) {
+							System.out.println(exception.getMessage());
+						} else {
+							System.out.println("??");
+						}
+//						List<Entry> list = report.getEntries().get(module.getCurrentRevision());
+//						if (list != null) {
+//							
+//						}
+					}
+				}
+
 			}
 			throw e;
 		}
+	}
+
+	private static String getState(int state) {
+		switch (state) {
+		case Bundle.ACTIVE:
+			return "ACTIVE     "; //$NON-NLS-1$
+		case Bundle.INSTALLED:
+			return "INSTALLED  "; //$NON-NLS-1$
+		case Bundle.RESOLVED:
+			return "RESOLVED   "; //$NON-NLS-1$
+		case Bundle.STARTING:
+			return "STARTING   "; //$NON-NLS-1$
+		case Bundle.STOPPING:
+			return "STOPPING   "; //$NON-NLS-1$
+		case Bundle.UNINSTALLED:
+			return "UNINSTALLED"; //$NON-NLS-1$
+		}
+		return Integer.toString(state);
 	}
 
 	/**

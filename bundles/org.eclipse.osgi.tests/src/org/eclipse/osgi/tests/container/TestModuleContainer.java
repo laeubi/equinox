@@ -4371,8 +4371,8 @@ public class TestModuleContainer extends AbstractTest {
 		System.out.println(" =============== TestModuleContainer.testLocalUseConstraintViolations2() ==========");
 		ResolutionReport result = resolveTestSet("set2");
 		// TODO get down permutation count!
-		assertSucessfulWith(result, 6);
-		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 3);
+		assertSucessfulWith(result, 1);
+		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 1);
 	}
 
 	private ResolutionReport resolveTestSet(String name) throws Exception {
