@@ -18,15 +18,38 @@
  */
 package org.apache.felix.resolver;
 
-import java.io.PrintStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
+import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.felix.resolver.reason.ReasonException;
-import org.apache.felix.resolver.util.*;
+import org.apache.felix.resolver.util.CandidateSelector;
+import org.apache.felix.resolver.util.CopyOnWriteSet;
+import org.apache.felix.resolver.util.OpenHashMap;
+import org.apache.felix.resolver.util.OpenHashMapList;
+import org.apache.felix.resolver.util.OpenHashMapSet;
+import org.apache.felix.resolver.util.ShadowList;
 import org.osgi.framework.Version;
-import org.osgi.framework.namespace.*;
-import org.osgi.resource.*;
+import org.osgi.framework.namespace.HostNamespace;
+import org.osgi.framework.namespace.IdentityNamespace;
+import org.osgi.framework.namespace.PackageNamespace;
+import org.osgi.resource.Capability;
+import org.osgi.resource.Requirement;
+import org.osgi.resource.Resource;
+import org.osgi.resource.Wire;
+import org.osgi.resource.Wiring;
 import org.osgi.service.resolver.HostedCapability;
 import org.osgi.service.resolver.ResolutionException;
 import org.osgi.service.resolver.ResolveContext;
@@ -322,6 +345,9 @@ class Candidates
 
     ResolutionError checkSubstitutes()
     {
+		if (!SubstitutionPackages.USE_LEGACY_SUBSTITUTION_PACKAGES) {
+			return null;
+		}
         OpenHashMap<Capability, Integer> substituteStatuses = new OpenHashMap<Capability, Integer>(m_subtitutableMap.size());
         for (Capability substitutable : m_subtitutableMap.keySet())
         {
@@ -368,7 +394,7 @@ class Candidates
                                 case SUBSTITUTED:
                                 default:
                                     // Need to remove any substituted that comes before an exported candidate
-                                    candidates.removeCurrentCandidate();
+									candidates.removeCurrentCandidate();
                                     // continue to next candidate
                                     break;
                             }
@@ -695,7 +721,12 @@ class Candidates
         CandidateSelector candidates = m_candidateMap.get(req);
         if (candidates != null)
         {
-            return candidates.getRemainingCandidates();
+			List<Capability> list = candidates.getRemainingCandidates();
+			if (list.isEmpty()) {
+				m_candidateMap.remove(req);
+				return null;
+			}
+			return list;
         }
         return null;
     }
@@ -710,11 +741,19 @@ class Candidates
         return null;
     }
 
+	public boolean isSubstitutionPackage(Requirement req) {
+		CandidateSelector candidates = m_candidateMap.get(req);
+		if (candidates == null) {
+			return false;
+		}
+		return candidates.isSubstitutionPackage();
+	}
+
     public Capability removeFirstCandidate(Requirement req)
     {
         CandidateSelector candidates = m_candidateMap.get(req);
         // Remove the conflicting candidate.
-        Capability cap = candidates.removeCurrentCandidate();
+		Capability cap = candidates.removeCurrentCandidate();
         if (candidates.isEmpty())
         {
             m_candidateMap.remove(req);
@@ -732,10 +771,69 @@ class Candidates
         CandidateSelector candidates = m_candidateMap.get(req);
         List<Capability> remaining = new ArrayList<Capability>(candidates.getRemainingCandidates());
         remaining.removeAll(caps);
-        candidates = new CandidateSelector(remaining, m_candidateSelectorsUnmodifiable);
-        m_candidateMap.put(req, candidates);
-        return candidates;
+		if (remaining.isEmpty()) {
+			m_candidateMap.remove(req);
+			return null;
+		}
+		candidates = candidates.copyWith(remaining);
+		m_candidateMap.put(req, candidates);
+		return candidates;
     }
+
+	/**
+	 * In case of substitution packages we need to be able to discard a capability
+	 * from all candidate lists if we choose to use the import over the export.
+	 * 
+	 * @param capability the package capability to drop
+	 */
+	public void discardExportPackageCapability(Capability capability) {
+		if (Util.isExportedPackage(capability)) {
+			Collection<Requirement> dependent = m_dependentMap.get(capability);
+			if (dependent == null || dependent.isEmpty()) {
+				return;
+			}
+			for (Requirement requirement : dependent) {
+				CandidateSelector candidates = m_candidateMap.get(requirement);
+				Capability current = candidates.getCurrentCandidate();
+				if (current == capability) {
+					candidates.removeCurrentCandidate();
+				} else {
+					List<Capability> remaining = new ArrayList<Capability>(candidates.getRemainingCandidates());
+					if (remaining.remove(capability)) {
+						if (remaining.isEmpty()) {
+							m_candidateMap.remove(requirement);
+						} else {
+							m_candidateMap.put(requirement,
+								candidates.copyWith(remaining));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * In case of substitution packages we need to take a decision if the internal
+	 * or external binding is used. If the internal one is chosen, then no other
+	 * providers are to be selected for this package and we can remove them to
+	 * prevent further permutation.
+	 * 
+	 * @param req the requirement to clear from other providers
+	 * @return
+	 */
+	public CandidateSelector dropOtherCandidates(Requirement req) {
+		// this is a special case where we need to completely replace the
+		// CandidateSelector
+		// this method should never be called from normal Candidates permutations
+		CandidateSelector candidates = m_candidateMap.get(req);
+		Capability currentCandidate = candidates.getCurrentCandidate();
+		if (currentCandidate == null) {
+			return candidates;
+		}
+		candidates = candidates.copyWith(Collections.singletonList(currentCandidate));
+		m_candidateMap.put(req, candidates);
+		return candidates;
+	}
 
     /**
      * Merges fragments into their hosts. It does this by wrapping all host
@@ -943,14 +1041,18 @@ class Candidates
                 return getResolutionError(resource);
             }
         }
-
-        populateSubstitutables();
+		if (SubstitutionPackages.USE_LEGACY_SUBSTITUTION_PACKAGES) {
+			populateSubstitutables();
+		} else {
+			m_candidateMap.entrySet().forEach(entry -> entry.getValue().calculate(entry.getKey()));
+		}
 
         m_candidateMap.trim();
         m_dependentMap.trim();
 
         // mark the selectors as unmodifiable now
         m_candidateSelectorsUnmodifiable.set(true);
+		// TODO compute final
         return null;
     }
 
@@ -1149,16 +1251,24 @@ class Candidates
 
     public Candidates permutate(Requirement req)
     {
-        if (!Util.isMultiple(req) && canRemoveCandidate(req))
-        {
-            Candidates perm = copy();
+    	if (SubstitutionPackages.USE_LEGACY_SUBSTITUTION_PACKAGES) {
+			if (!Util.isMultiple(req) && canRemoveCandidate(req)) {
+				Candidates perm = copy();
+				Capability removed = perm.removeFirstCandidate(req);
+				if (FILTER_USES) {
+					ProblemReduction.removeUsesViolations(perm, req, m_session.getLogger());
+				}
+				return perm;
+			}
+			return null;
+		} else {
+			Candidates perm = copy();
             Capability removed = perm.removeFirstCandidate(req);
-            if (FILTER_USES) {
-                    ProblemReduction.removeUsesViolations(perm, req, m_session.getLogger());
-            }
+			if (perm.m_candidateMap.get(req) == null) {
+				return null;
+			}
             return perm;
-        }
-        return null;
+		}
     }
 
     public boolean canRemoveCandidate(Requirement req)
@@ -1167,7 +1277,7 @@ class Candidates
         if (candidates != null)
         {
             Capability current = candidates.getCurrentCandidate();
-            if (current != null)
+			if (current != null)
             {
                 // IMPLEMENTATION NOTE:
                 // Here we check for a req that is used for a substitutable export.
@@ -1325,4 +1435,99 @@ class Candidates
         return null;
     }
 
+	public FaultyResourcesReport getFaultyResources() {
+		Set<Entry<Requirement, CandidateSelector>> set = m_candidateMap.entrySet();
+		FaultyResourcesReport report = new FaultyResourcesReport();
+		for (Entry<Requirement, CandidateSelector> entry : set) {
+			if (entry.getValue().isEmpty()) {
+				Requirement requirement = entry.getKey();
+				if (Util.isOptional(requirement)) {
+					report.optional.computeIfAbsent(requirement.getResource(), nil -> new ArrayList<>())
+							.add(requirement);
+				} else {
+					report.mandatory.computeIfAbsent(requirement.getResource(), nil -> new ArrayList<>())
+							.add(requirement);
+				}
+			}
+		}
+		return report;
+	}
+
+	public static final class FaultyResourcesReport extends ResolutionError {
+
+		private Map<Resource, List<Requirement>> optional = new HashMap<>();
+		private Map<Resource, List<Requirement>> mandatory = new HashMap<>();
+
+		private void append(StringBuilder sb, String type, Map<Resource, List<Requirement>> map) {
+			sb.append("Resources with missing ");
+			sb.append(type);
+			sb.append(" requirements: ");
+			sb.append(map.size());
+			for (Entry<Resource, List<Requirement>> entry : map.entrySet()) {
+				sb.append("\n  ");
+				sb.append(entry.getKey());
+				for (Requirement requirement : entry.getValue()) {
+					sb.append("\n    ");
+					sb.append(requirement);
+				}
+			}
+		}
+
+		public boolean isBetterThan(FaultyResourcesReport other) {
+			if (mandatory.size() < other.mandatory.size()) {
+				return true;
+			}
+			return optional.size() < other.optional.size();
+		}
+
+		public boolean isMissingMandatory() {
+			return mandatory.size() > 0;
+		}
+		@Override
+		public String getMessage() {
+			StringBuilder sb = new StringBuilder();
+			append(sb, "mandatory", mandatory);
+			return sb.toString();
+		}
+
+		@Override
+		public ResolutionException toException() {
+			return new ReasonException(ReasonException.Reason.MissingRequirement, getMessage(), null,
+					getUnresolvedRequirements());
+		}
+
+		@Override
+		public Collection<Requirement> getUnresolvedRequirements() {
+			return Stream.concat(mandatory.values().stream().flatMap(List::stream),
+					optional.values().stream().flatMap(List::stream)).collect(Collectors.toList());
+		}
+
+	}
+
+	public List<Candidates> process(Logger logger) {
+		if (SubstitutionPackages.USE_LEGACY_SUBSTITUTION_PACKAGES) {
+			return Collections.emptyList();
+		}
+		// we now need to do two steps:
+		// 1) resolve substitutions either to internal or external
+		// 2) remove violating package providers
+		List<Candidates> alternatives = new ArrayList<>();
+//		Set<Entry<Requirement, CandidateSelector>> set = m_candidateMap.entrySet();
+		for (Requirement requirement : m_candidateMap.keySet()) {
+			if (requirement == null) {
+				continue;
+			}
+//			System.out.println("process: [" + Util.getSymbolicName(requirement.getResource()) + "] " + requirement);
+			Candidates candidates = SubstitutionPackages.resolve(this, requirement, logger);
+			if (candidates != null) {
+				alternatives.add(candidates);
+			}
+			List<Candidates> invalidPackageProvider = ProblemReduction.removeInvalidPackageProvider(this, requirement,
+					logger);
+//			if (invalidPackageProvider.size() > 0) {
+//				System.out.println(invalidPackageProvider.size() + " dropped!");
+//			}
+		}
+		return alternatives;
+	}
 }

@@ -4366,6 +4366,31 @@ public class TestModuleContainer extends AbstractTest {
 		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 20);
 	}
 
+	@Test
+
+	public void testLocalUseConstraintViolations2() throws Exception {
+		System.out.println(" =============== TestModuleContainer.testLocalUseConstraintViolations2() ==========");
+		ResolutionReport result = resolveTestSet("set2");
+		// TODO get down permutation count!
+		assertSucessfulWith(result, 6);
+		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 3);
+	}
+
+	@Test
+	public void testSubstitutionPackageResolution() throws Exception {
+		System.out.println("############## TestModuleContainer.testInvalidRemoval() #####");
+		ResolutionReport result = resolveTestSet("set3");
+		// TODO get down permutation count
+		// In this example we see the following:
+		// - libg has two possible choices for its substitution package, the internal one is chosen in first iteration -> resolved
+		// - util has two possible choices for its substitution package, the external one is chosen in first iteration -> libg
+		// - now util has to be removed as a provider only having libg as the only one left 
+		// - bndlib now can only use libg for exceptions package but this conflicts with  result from util that has use constraint on exceptions package
+		// - on second iteration now libg chose external and drops it exports removing it from util+bndlib -> resolved state
+		assertSucessfulWith(result, 4);
+		assertNotMoreThanPermutationCreated(result, ResolutionReport::getSubstitutionPermutations, 3);
+	}
+
 	private ResolutionReport resolveTestSet(String name) throws Exception {
 		Enumeration<URL> entries = getBundle().findEntries("/test_files/containerTests/" + name, "*.MF", false);
 		Map<Long, String> manifests = new TreeMap<>();

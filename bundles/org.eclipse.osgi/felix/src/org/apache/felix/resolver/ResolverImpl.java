@@ -36,6 +36,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.felix.resolver.Candidates.FaultyResourcesReport;
 import org.apache.felix.resolver.util.ArrayMap;
 import org.apache.felix.resolver.util.OpenHashMap;
 import org.osgi.framework.namespace.BundleNamespace;
@@ -273,13 +274,37 @@ public class ResolverImpl implements Resolver
     private Candidates findValidCandidates(ResolveSession session, Map<Resource, ResolutionError> faultyResources) {
         Candidates allCandidates = null;
         boolean foundFaultyResources = false;
-        do
+		Candidates best = null;
+       X: do
         {
+//			System.out.println("Get next permutation...");
             allCandidates = session.getNextPermutation();
             if (allCandidates == null)
             {
+//				System.out.println("No more permutations!");
+				if (best != null) {
+					FaultyResourcesReport report = best.getFaultyResources();
+					if (report.isMissingMandatory()) {
+						session.setCurrentError(report);
+					}
+					return best;
+				}
                 break;
             }
+			FaultyResourcesReport report = allCandidates.getFaultyResources();
+			Collection<Requirement> unresolvedRequirements = report.getUnresolvedRequirements();
+			if (unresolvedRequirements.size() > 0) {
+//				System.out.println("-- there are unresolved resources:");
+//				System.out.println(report);
+				if (best == null || allCandidates.getFaultyResources().isBetterThan(best.getFaultyResources())) {
+					best = allCandidates;
+				}
+//				System.out.println("Try again to find something better!");
+				session.setCurrentError(report);
+				continue X;
+			} else {
+//				System.out.println("We resolved it successful!");
+			}
 
 //allCandidates.dump();
 
@@ -309,7 +334,13 @@ public class ResolverImpl implements Resolver
             }
         }
         while (!session.isCancelled() && session.getCurrentError() != null);
-
+		ResolutionError error = session.getCurrentError();
+		if (error != null) {
+//			System.out.println("ERR: " + error.getMessage());
+		} else {
+//			System.out.println("Return without error!");
+		}
+//		System.out.println("session.isCancelled(): " + session.isCancelled());
         return allCandidates;
     }
 
@@ -1345,7 +1376,7 @@ public class ResolverImpl implements Resolver
         // requirement; there may be no candidates if the resource
         // associated with the requirement is already resolved.
         if (permutation.canRemoveCandidate(req))
-        {
+		{// FIXME check this? maybe just permuted and return if != null?
             permutation.removeFirstCandidate(req);
             mutated.add(req);
             return true;
@@ -1646,6 +1677,9 @@ public class ResolverImpl implements Resolver
                             break;
                         }
                     }
+				} else {
+					// ??? SHould this not throw an error?!?
+					System.out.println(req + " has no candidates and is optional = " + Util.isOptional(req));
                 }
             }
 

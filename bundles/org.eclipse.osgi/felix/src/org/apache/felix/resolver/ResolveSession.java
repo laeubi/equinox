@@ -224,7 +224,16 @@ class ResolveSession implements Runnable
         // clear mutateIndexes also so we insert new permutations
         // based of this permutation as a higher priority
         clearMutateIndexes();
-
+		// We are about to return this permutation, so ask it to perform the final steps
+		// and return any alternatives
+//		System.out.println("--- return next permutation of type " + type);
+		List<Candidates> list = next.process(logger);
+		if (list.size() > 0) {
+//			System.out.println("Adding " + list.size() + " substitution alternatives!");
+			for (Candidates candidates : list) {
+				addPermutation(PermutationType.SUBSTITUTE, candidates);
+			}
+		}
         return next;
     }
 

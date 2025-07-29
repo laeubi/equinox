@@ -22,13 +22,15 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-
+import org.apache.felix.resolver.Util;
 import org.osgi.resource.Capability;
+import org.osgi.resource.Requirement;
 
 public class CandidateSelector {
     protected final AtomicBoolean isUnmodifiable;
     protected final List<Capability> unmodifiable;
     private int currentIndex = 0;
+	private boolean substitutionPackage;
 
     public CandidateSelector(List<Capability> candidates, AtomicBoolean isUnmodifiable) {
         this.isUnmodifiable = isUnmodifiable;
@@ -39,11 +41,18 @@ public class CandidateSelector {
         this.isUnmodifiable = candidateSelector.isUnmodifiable;
         this.unmodifiable = candidateSelector.unmodifiable;
         this.currentIndex = candidateSelector.currentIndex;
+		this.substitutionPackage = candidateSelector.substitutionPackage;
     }
 
     public CandidateSelector copy() {
         return new CandidateSelector(this);
     }
+
+	public CandidateSelector copyWith(List<Capability> candidates) {
+		CandidateSelector selector = new CandidateSelector(candidates, isUnmodifiable);
+		selector.substitutionPackage = substitutionPackage;
+		return selector;
+	}
 
     public int getRemainingCandidateCount() {
         return unmodifiable.size() - currentIndex;
@@ -87,4 +96,20 @@ public class CandidateSelector {
             throw new IllegalStateException("Trying to mutate after candidates have been prepared.");
         }
     }
+
+	/**
+	 * Calculates some final values before the selector is made unmodifiable
+	 * 
+	 * @param requirement the requirement this {@link CandidateSelector} belongs to
+	 */
+	public void calculate(Requirement requirement) {
+		checkModifiable();
+		substitutionPackage = unmodifiable.stream()
+				.anyMatch(capability -> Util.isSubstitutionPackage(requirement, capability));
+	}
+
+	public boolean isSubstitutionPackage() {
+		return substitutionPackage;
+	}
+
 }
