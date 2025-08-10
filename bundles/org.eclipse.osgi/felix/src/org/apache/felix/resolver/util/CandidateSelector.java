@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 import org.apache.felix.resolver.Util;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
@@ -30,6 +31,7 @@ public class CandidateSelector {
     protected final AtomicBoolean isUnmodifiable;
     protected final List<Capability> unmodifiable;
     private int currentIndex = 0;
+    private List<Capability> substitutionPackages;
 
     public CandidateSelector(List<Capability> candidates, AtomicBoolean isUnmodifiable) {
         this.isUnmodifiable = isUnmodifiable;
@@ -40,6 +42,7 @@ public class CandidateSelector {
         this.isUnmodifiable = candidateSelector.isUnmodifiable;
         this.unmodifiable = candidateSelector.unmodifiable;
         this.currentIndex = candidateSelector.currentIndex;
+        this.substitutionPackages = candidateSelector.substitutionPackages;
     }
 
     public CandidateSelector copy() {
@@ -48,6 +51,7 @@ public class CandidateSelector {
 
     public CandidateSelector copyWith(List<Capability> candidates) {
         CandidateSelector selector = new CandidateSelector(candidates, isUnmodifiable);
+        selector.substitutionPackages = substitutionPackages;
         return selector;
     }
 
@@ -93,4 +97,24 @@ public class CandidateSelector {
             throw new IllegalStateException("Trying to mutate after candidates have been prepared.");
         }
     }
+
+    /**
+     * Calculates some final values before the selector is made unmodifiable
+     * 
+     * @param requirement the requirement this {@link CandidateSelector} belongs to
+     */
+    public void calculate(Requirement requirement) {
+        checkModifiable();
+        substitutionPackages = unmodifiable.stream()
+                .filter(capability -> Util.isSubstitutionPackage(requirement, capability)).collect(Collectors.toList());
+    }
+
+    public boolean isSubstitutionPackage() {
+        return !substitutionPackages.isEmpty();
+    }
+
+    public List<Capability> getSubstitutionPackages() {
+        return substitutionPackages;
+    }
+
 }
