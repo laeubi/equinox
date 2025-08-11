@@ -56,14 +56,22 @@ public class Backlog {
     public Candidates getNext() {
         Candidates candidates;
         while ((candidates = session.getNextPermutation()) != null) {
+			System.out.println("Backlog.getNext()");
+			session.getLogger().logCandidates(session, candidates);
             ResolutionError substituteError = candidates.checkSubstitutes();
-            FaultyResourcesReport report = candidates.getFaultyResources();
+			candidates.resolveOptional(session);
+			System.out.println("--after process--");
+			session.getLogger().logCandidates(session, candidates);
+			FaultyResourcesReport report = candidates.getFaultyResources(null);
             if (!report.isMissing() || session.isCancelled()) {
+				System.out.println(" >> Valid and return...");
                 return candidates;
             }
-            backlog.put(candidates, candidates.getFaultyResources());
+			System.out.println(">> Has missing try next permutation...");
+			backlog.put(candidates, candidates.getFaultyResources(null));
         }
         if (backlog.isEmpty()) {
+			System.out.println("Backlog is empty!");
             return null;
         }
         Entry<Candidates, FaultyResourcesReport> bestEntry = null;

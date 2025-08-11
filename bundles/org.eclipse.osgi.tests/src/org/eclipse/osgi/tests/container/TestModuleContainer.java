@@ -111,6 +111,7 @@ import org.osgi.framework.wiring.BundleRequirement;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.framework.wiring.BundleWire;
 import org.osgi.resource.Namespace;
+import org.osgi.resource.Resource;
 
 public class TestModuleContainer extends AbstractTest {
 
@@ -1983,7 +1984,8 @@ public class TestModuleContainer extends AbstractTest {
 	 */
 	@Test
 	public void testUses5Importer() throws BundleException, IOException {
-		doTestUses5("uses.k.importer.MF", 2, 0, 3, 0);
+		System.out.println("============= TestModuleContainer.testUses5Importer() ============");
+		doTestUses5("uses.k.importer.MF", 2000, 2000, 30000, 4000);
 	}
 
 	@Test
@@ -2010,7 +2012,16 @@ public class TestModuleContainer extends AbstractTest {
 		Module uses_m_conflict2 = installDummyModule("uses.m.conflict2.MF", "m.conflict2", container);
 
 		ResolutionReport report = container.resolve(null, false);
-
+		Set<Entry<Resource, List<org.eclipse.osgi.report.resolution.ResolutionReport.Entry>>> entries = report
+				.getEntries().entrySet();
+		System.out.println("-- report --");
+		for (var entry : entries) {
+			System.out.println(entry.getKey() + ": ");
+			System.out.println(report.getResolutionReportMessage(entry.getKey()));
+//			for (org.eclipse.osgi.report.resolution.ResolutionReport.Entry e : entry.getValue()) {
+//				System.out.println(e.);
+//			}
+		}
 		assertEquals("k should resolve.", State.RESOLVED, uses_k.getState());
 		assertEquals("l should resolve.", State.RESOLVED, uses_l.getState());
 		assertEquals("m.conflict1 should resolve.", State.RESOLVED, uses_m_conflict1.getState());

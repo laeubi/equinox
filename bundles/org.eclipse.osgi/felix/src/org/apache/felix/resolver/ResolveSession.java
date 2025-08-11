@@ -195,7 +195,7 @@ class ResolveSession implements Runnable
     Candidates getNextPermutation() {
         Candidates next = null;
         PermutationType type;
-        do {
+//        do {
             if (!m_usesPermutations.isEmpty())
             {
                 next = m_usesPermutations.remove(0);
@@ -215,8 +215,8 @@ class ResolveSession implements Runnable
                 return null;
             }
             logger.logProcessPermutation(type);
-        }
-        while(!m_processedDeltas.add(next.getDelta()));
+//        }
+//        while(!m_processedDeltas.add(next.getDelta()));
         // Null out each time a new permutation is attempted.
         // We only use this to store a valid permutation which is a
         // delta of the current permutation.

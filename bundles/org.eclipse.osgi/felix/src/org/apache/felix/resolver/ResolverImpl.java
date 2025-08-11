@@ -131,10 +131,16 @@ public class ResolverImpl implements Resolver
     public Map<Resource, List<Wire>> resolve(ResolveContext rc, Executor executor) throws ResolutionException
     {
         ResolveSession session = ResolveSession.createSession(rc, executor, null, null, null, m_logger);
+		try {
         return doResolve(session);
+		} catch (ResolutionException e) {
+			e.printStackTrace();
+			throw e;
+		}
     }
 
     private Map<Resource, List<Wire>> doResolve(ResolveSession session) throws ResolutionException {
+		System.out.println(">> ResolverImpl.doResolve()");
         Map<Resource, List<Wire>> wireMap = new HashMap<Resource, List<Wire>>();
         boolean retry;
         do
@@ -211,7 +217,13 @@ public class ResolverImpl implements Resolver
             }
         }
         while (retry);
-
+		for (Entry<Resource, List<Wire>> entry : wireMap.entrySet()) {
+			System.out.println(entry.getKey());
+			List<Wire> value = entry.getValue();
+			for (Wire wire : value) {
+				System.out.println("\t" + wire);
+			}
+		}
         return wireMap;
     }
 
@@ -270,22 +282,25 @@ public class ResolverImpl implements Resolver
         Candidates current = Objects.requireNonNull(backlog.getNext());
         boolean foundFaultyResources = false;
         Candidates bestCandidate = null;
-        ResolutionError bestError = null;
+		ResolutionError bestError = null;
+		FaultyResourcesReport bestReport = null;
+
         while (!session.isCancelled()) {
             Map<Resource, ResolutionError> currentFaultyResources = new HashMap<Resource, ResolutionError>();
-            session.setCurrentError(
-                    PackageSpaces.checkConsistency(session, current, currentFaultyResources, m_logger));
-            if (!currentFaultyResources.isEmpty()) {
-                if (!foundFaultyResources) {
-                    foundFaultyResources = true;
-                    faultyResources.putAll(currentFaultyResources);
-                } else if (faultyResources.size() > currentFaultyResources.size()) {
-                    // save the optimal faultyResources which has less
-                    faultyResources.clear();
-                    faultyResources.putAll(currentFaultyResources);
-                }
-            }
-            FaultyResourcesReport report = current.getFaultyResources();
+			ResolutionError consistency = PackageSpaces.checkConsistency(session, current, currentFaultyResources,
+					m_logger);
+			session.setCurrentError(consistency);
+//            if (!currentFaultyResources.isEmpty()) {
+//                if (!foundFaultyResources) {
+//                    foundFaultyResources = true;
+//                    faultyResources.putAll(currentFaultyResources);
+//                } else if (faultyResources.size() > currentFaultyResources.size()) {
+//                    // save the optimal faultyResources which has less
+//                    faultyResources.clear();
+//                    faultyResources.putAll(currentFaultyResources);
+//                }
+//            }
+			FaultyResourcesReport report = current.getFaultyResources(consistency);
             ResolutionError currentError = session.getCurrentError();
             if (currentError == null && report.getUnresolvedRequirements().isEmpty()) {
                 // Success!
@@ -293,19 +308,32 @@ public class ResolverImpl implements Resolver
                 break;
             }
             m_logger.logPermutationProcessed(currentError == null ? report : currentError);
-            if (bestCandidate == null || report.isBetterThan(bestCandidate.getFaultyResources())) {
+			if (bestCandidate == null || report.isBetterThan(bestReport)) {
                 bestCandidate = current;
-                if (currentError == null && report.isMissingMandatory()) {
-                    bestError = report;
-                } else {
-                    bestError = currentError;
-                }
+				bestReport = report;
+				if (consistency == null) {
+					if (report.isMissingMandatory()) {
+						bestError = report;
+					} else {
+						bestError = null;
+					}
+				} else {
+					bestError = consistency;
+				}
             }
             Candidates next = backlog.getNext();
             if (next == null)
             {
                 // nothing more, return the best we found
                 session.setCurrentError(bestError);
+				System.out.println("=== NOTHING LEFT return ==");
+				m_logger.logCandidates(session, bestCandidate);
+				if (bestError!=null) {
+					System.out.println("--- error ---");
+					System.out.println(bestError.getMessage());
+				} else {
+					System.out.println("no error?");
+				}
                 return bestCandidate;
             }
             current = next;

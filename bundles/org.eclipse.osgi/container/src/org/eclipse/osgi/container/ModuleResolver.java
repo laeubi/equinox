@@ -96,7 +96,7 @@ final class ModuleResolver {
 	boolean DEBUG_ROOTS = false;
 	boolean DEBUG_PROVIDERS = false;
 	boolean DEBUG_HOOKS = false;
-	boolean DEBUG_USES = false;
+	boolean DEBUG_USES = true;
 	boolean DEBUG_PERMUTATIONS = false;
 	boolean DEBUG_WIRING = false;
 	boolean DEBUG_REPORT = false;

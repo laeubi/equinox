@@ -498,17 +498,18 @@ public class PackageSpaces {
         if (Util.isMultiple(req)) {
             return false;
         }
-        // If we've already permutated this requirement in another
-        // uses constraint, don't permutate it again just continue
-        // with the next uses constraint.
-        if (mutated.contains(req)) {
-            return true;
-        }
+//        // If we've already permutated this requirement in another
+//        // uses constraint, don't permutate it again just continue
+//        // with the next uses constraint.
+//        if (mutated.contains(req)) {
+//            return true;
+//        }
 
         // See if we can permutate the candidates for blamed
         // requirement; there may be no candidates if the resource
         // associated with the requirement is already resolved.
         if (permutation.canRemoveCandidate(req)) {
+			System.out.println("remove first: " + req);
             permutation.removeFirstCandidate(req);
             mutated.add(req);
             return true;
