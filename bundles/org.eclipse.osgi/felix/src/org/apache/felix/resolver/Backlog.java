@@ -57,12 +57,22 @@ public class Backlog {
     public Candidates getNext() {
         Candidates candidates;
         while ((candidates = session.getNextPermutation()) != null) {
+			System.out.println("Backlog.getNext()");
+			session.getLogger().logCandidates(session, candidates);
             List<Candidates> alternatives = candidates.process(session.getLogger());
+			System.out.println("---> processed");
+			session.getLogger().logCandidates(session, candidates);
+			for (Candidates alt : alternatives) {
+//				System.out.println("ALT:");
+//				session.getLogger().logCandidates(session, alt);
+			}
             alternatives.forEach(alt -> session.addPermutation(PermutationType.SUBSTITUTE, alt));
             FaultyResourcesReport report = candidates.getFaultyResources();
             if (!report.isMissing() || session.isCancelled()) {
+				System.out.println("{ permutation is satisfied, return to resolver }");
                 return candidates;
             }
+			System.out.println("{ permutation is NOT satisfied, put to backlog! }");
             backlog.put(candidates, candidates.getFaultyResources());
         }
         if (backlog.isEmpty()) {

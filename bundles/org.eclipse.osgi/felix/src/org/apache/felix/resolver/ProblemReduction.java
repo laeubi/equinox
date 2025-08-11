@@ -33,9 +33,11 @@ import org.osgi.resource.Resource;
  * {@link Capability}s that might satisfy {@link Requirement}s but violates some
  * contracts that would lead to a guaranteed unresolvable state.
  */
-class ProblemReduction {
+public class ProblemReduction {
 
     private static final Capability[] EMPTY_CAPABILITIES = new Capability[0];
+
+	public static boolean enable = false;
 
     /**
      * Removes all violating providers for a given {@link Requirement} and
@@ -118,37 +120,47 @@ class ProblemReduction {
      * @param requirement the requirement where the search should start
      * @return a list of Candidates that where dropped as part of the filtering
      */
-    static List<Candidates> removeInvalidPackageProvider(Candidates candidates, Requirement requirement,
+	static List<Requirement> removeInvalidPackageProvider(Candidates candidates, Requirement requirement,
             Logger logger) {
-        List<Candidates> dropped = new ArrayList<>();
-        Resource targetResource = requirement.getResource();
-        List<Requirement> requirements = targetResource.getRequirements(PackageNamespace.PACKAGE_NAMESPACE);
-        boolean changed;
-        do {
-            changed = false;
-            for (Requirement packageRequirement : requirements) {
-                Capability singlePackageProvider = getSingleProvider(candidates, packageRequirement);
-                if (singlePackageProvider == null) {
-                    continue;
-                }
-                Capability capabilityForRequirement = getProviderCapabilityForRequirement(candidates,
-                        singlePackageProvider.getResource(), requirement);
-                if (capabilityForRequirement == null) {
-                    continue;
-                }
-                Set<String> uses = Util.getUses(singlePackageProvider);
-                if (uses.isEmpty() || !uses.contains(Util.getPackageName(capabilityForRequirement))) {
-                    continue;
-                }
-                // now we need to drop all providers that are before our provider
-                while (candidates.getFirstCandidate(requirement).getResource() != singlePackageProvider.getResource()) {
-                    dropped.add(candidates.copy());
-                    candidates.removeFirstCandidate(requirement);
-                    changed = true;
-                }
-            }
-        } while (changed);
-        return dropped;
+		if (!enable) {
+			return Collections.emptyList();
+		}
+//		System.out.println("[ removeInvalidPackageProvider: " + Util.getSymbolicName(requirement.getResource()) + " -> "
+//				+ requirement + "]");
+		Capability singlePackageProvider = getSingleProvider(candidates, requirement);
+		if (singlePackageProvider == null) {
+//			System.out.println(" --> not a single provider!");
+			return Collections.emptyList();
+		} else {
+//			System.out.println(" --> only provider is " + Util.getSymbolicName(singlePackageProvider.getResource()));
+		}
+		Set<String> uses = Util.getUses(singlePackageProvider);
+		if (uses.isEmpty()) {
+//			System.out.println(" --> no uses to check!");
+			return Collections.emptyList();
+		}
+		Resource targetResource = requirement.getResource();
+		List<Requirement> requirements = targetResource.getRequirements(PackageNamespace.PACKAGE_NAMESPACE);
+		List<Requirement> changed = new ArrayList<>();
+		for (Requirement otherPackageRequirement : requirements) {
+			if (otherPackageRequirement == requirement) {
+				continue;
+			}
+			Capability firstCandidate = candidates.getFirstCandidate(otherPackageRequirement);
+			if (firstCandidate == null) {
+				continue;
+			}
+//			System.out.println("check " + otherPackageRequirement + " for uses violations currently provided by "
+//					+ Util.getSymbolicName(firstCandidate.getResource()));
+			if (uses.contains(Util.getPackageName(firstCandidate))) {
+				if (candidates.removeOtherCandidatesFrom(otherPackageRequirement,
+						singlePackageProvider.getResource())) {
+//					System.out.println(" -->removed some candidates!");
+					changed.add(otherPackageRequirement);
+				}
+			}
+		}
+		return changed;
     }
 
     private static Capability getProviderCapabilityForRequirement(Candidates candidates, Resource provider,
@@ -165,8 +177,8 @@ class ProblemReduction {
         return null;
     }
 
-    private static Capability getSingleProvider(Candidates candidates, Requirement packageRequirement) {
-        List<Capability> providers = candidates.getCandidates(packageRequirement);
+	private static Capability getSingleProvider(Candidates candidates, Requirement requirement) {
+		List<Capability> providers = candidates.getCandidates(requirement);
         if (providers != null && providers.size() == 1) {
             return providers.get(0);
         }
@@ -190,13 +202,5 @@ class ProblemReduction {
         }
         return Collections.unmodifiableList(list);
     }
-
-    public static List<Candidates> reduce(Candidates initialCandidates, Requirement requirement, Logger m_logger) {
-        ArrayList<Candidates> result = new ArrayList<>();
-        result.addAll(removeUsesViolations(initialCandidates, requirement, m_logger));
-        result.addAll(removeInvalidPackageProvider(initialCandidates, requirement, m_logger));
-        return result;
-    }
-
 
 }

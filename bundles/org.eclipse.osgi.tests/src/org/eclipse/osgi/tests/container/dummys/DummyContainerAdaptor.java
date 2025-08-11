@@ -178,6 +178,7 @@ public class DummyContainerAdaptor extends ModuleContainerAdaptor {
 
 	@Override
 	public void trace(String topic, String message) {
+		System.out.println(message);
 		traceMessages.add(message);
 	}
 

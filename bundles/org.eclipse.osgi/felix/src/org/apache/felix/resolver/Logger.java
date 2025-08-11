@@ -19,6 +19,7 @@
 package org.apache.felix.resolver;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.osgi.resource.Capability;
@@ -215,6 +216,12 @@ public class Logger
     }
 
     private void logCandidates(Resource resource, Candidates candidates) {
-        logCandidates(resource, req -> candidates.getCandidates(req));
+		logCandidates(resource, req -> {
+			List<Capability> list = candidates.getCandidates(req);
+			if (list == null) {
+				return Collections.emptyList();
+			}
+			return list;
+		});
     }
 }

@@ -65,6 +65,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.ToIntFunction;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
+import org.apache.felix.resolver.ProblemReduction;
 import org.eclipse.osgi.container.Module;
 import org.eclipse.osgi.container.Module.StartOptions;
 import org.eclipse.osgi.container.Module.State;
@@ -1065,6 +1066,8 @@ public class TestModuleContainer extends AbstractTest {
 
 	@Test
 	public void testSubstitutableExports03() throws BundleException, IOException {
+		System.out.println("===TestModuleContainer.testSubstitutableExports03()===");
+		ProblemReduction.enable = true;
 		DummyContainerAdaptor adaptor = createDummyAdaptor();
 		ModuleContainer container = adaptor.getContainer();
 
@@ -4393,6 +4396,8 @@ public class TestModuleContainer extends AbstractTest {
 
 	@Test
 	public void testLargeSet() throws Exception {
+		System.out.println("TestModuleContainer.testLargeSet()");
+		ProblemReduction.enable = true;
 		ResolutionReport result = resolveModuleDatabaseDump("big", TimeUnit.MINUTES.toSeconds(5));
 		assertSucessfulWith(result, 117, 344, 1, 172);
 	}
