@@ -131,7 +131,13 @@ public class ResolverImpl implements Resolver
     public Map<Resource, List<Wire>> resolve(ResolveContext rc, Executor executor) throws ResolutionException
     {
         ResolveSession session = ResolveSession.createSession(rc, executor, null, null, null, m_logger);
+		try {
+			System.out.println("ResolverImpl.resolve()");
         return doResolve(session);
+		} catch (ResolutionException e) {
+			e.printStackTrace();
+			throw e;
+		}
     }
 
     private Map<Resource, List<Wire>> doResolve(ResolveSession session) throws ResolutionException {
@@ -295,6 +301,16 @@ public class ResolverImpl implements Resolver
                 break;
             }
             m_logger.logPermutationProcessed(consistency == null ? report : consistency);
+			System.out.println("----------------------------");
+			System.out.println("Is CURRENT:");
+			m_logger.logCandidates(session, current);
+			System.out.println("better THAN:");
+			if (bestCandidate == null) {
+				System.out.println("-nothing-");
+			} else {
+				m_logger.logCandidates(session, bestCandidate);
+			}
+			System.out.println("----------------------------");
             if (bestCandidate == null || report.isBetterThan(bestReport)) {
                 bestCandidate = current;
                 bestReport = report;
@@ -311,6 +327,8 @@ public class ResolverImpl implements Resolver
             Candidates next = backlog.getNext();
             if (next == null)
             {
+				System.out.println("-- return last --");
+				m_logger.logCandidates(session, bestCandidate);
                 // nothing more, return the best we found
                 session.setCurrentError(bestError);
                 return bestCandidate;

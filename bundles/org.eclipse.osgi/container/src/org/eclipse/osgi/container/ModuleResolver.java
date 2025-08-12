@@ -96,7 +96,7 @@ final class ModuleResolver {
 	boolean DEBUG_ROOTS = false;
 	boolean DEBUG_PROVIDERS = false;
 	boolean DEBUG_HOOKS = false;
-	boolean DEBUG_USES = false;
+	boolean DEBUG_USES = true;
 	boolean DEBUG_PERMUTATIONS = false;
 	boolean DEBUG_WIRING = false;
 	boolean DEBUG_REPORT = false;
@@ -493,19 +493,19 @@ final class ModuleResolver {
 					errors = new HashMap<>();
 				}
 				errors.put(resource, error.toException());
-				if (DEBUG_USES) {
-					ModuleResolver.this.adaptor.trace(OPTION_USES,
-							new StringBuilder("RESOLVER: Uses constraint violation") //$NON-NLS-1$
-									.append(SEPARATOR).append(TAB) //
-									.append("Resource") //$NON-NLS-1$
-									.append(SEPARATOR).append(TAB).append(TAB) //
-									.append(resource) //
-									.append(SEPARATOR).append(TAB) //
-									.append("Error") //$NON-NLS-1$
-									.append(SEPARATOR).append(TAB).append(TAB) //
-									.append(error.getMessage()) //
-									.toString());
-				}
+//				if (DEBUG_USES) {
+//					ModuleResolver.this.adaptor.trace(OPTION_USES,
+//							new StringBuilder("RESOLVER: Uses constraint violation") //$NON-NLS-1$
+//									.append(SEPARATOR).append(TAB) //
+//									.append("Resource") //$NON-NLS-1$
+//									.append(SEPARATOR).append(TAB).append(TAB) //
+//									.append(resource) //
+//									.append(SEPARATOR).append(TAB) //
+//									.append("Error") //$NON-NLS-1$
+//									.append(SEPARATOR).append(TAB).append(TAB) //
+//									.append(error.getMessage()) //
+//									.toString());
+//				}
 			}
 
 			public void logRequirement(String message, Requirement requirement) {

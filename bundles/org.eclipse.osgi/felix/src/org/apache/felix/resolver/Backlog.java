@@ -57,14 +57,19 @@ public class Backlog {
     public Candidates getNext() {
         Candidates candidates;
         while ((candidates = session.getNextPermutation()) != null) {
+			System.out.println("Backlog.getNext()");
+			session.getLogger().logCandidates(session, candidates);
             ResolutionError substituteError = candidates.checkSubstitutes();
             FaultyResourcesReport report = candidates.getFaultyResources(Collections.emptyMap());
             if (!report.isMissing() || session.isCancelled()) {
+				System.out.println("found match...");
                 return candidates;
             }
-            backlog.put(candidates, candidates.getFaultyResources(Collections.emptyMap()));
+			System.out.println("put to backlog");
+			backlog.put(candidates, report);
         }
         if (backlog.isEmpty()) {
+			System.out.println("backlog is empty");
             return null;
         }
         Entry<Candidates, FaultyResourcesReport> bestEntry = null;

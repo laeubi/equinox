@@ -111,6 +111,7 @@ import org.osgi.framework.wiring.BundleRequirement;
 import org.osgi.framework.wiring.BundleRevision;
 import org.osgi.framework.wiring.BundleWire;
 import org.osgi.resource.Namespace;
+import org.osgi.service.resolver.ResolutionException;
 
 public class TestModuleContainer extends AbstractTest {
 
@@ -2010,7 +2011,10 @@ public class TestModuleContainer extends AbstractTest {
 		Module uses_m_conflict2 = installDummyModule("uses.m.conflict2.MF", "m.conflict2", container);
 
 		ResolutionReport report = container.resolve(null, false);
-
+		ResolutionException resolutionException = report.getResolutionException();
+		if (resolutionException != null) {
+			resolutionException.printStackTrace();
+		}
 		assertEquals("k should resolve.", State.RESOLVED, uses_k.getState());
 		assertEquals("l should resolve.", State.RESOLVED, uses_l.getState());
 		assertEquals("m.conflict1 should resolve.", State.RESOLVED, uses_m_conflict1.getState());

@@ -752,7 +752,7 @@ class Candidates
         Capability cap = candidates.removeCurrentCandidate();
         if (candidates.isEmpty())
         {
-            m_candidateMap.remove(req);
+			m_candidateMap.put(req, CandidateSelector.EMPTY);
         }
         // Update the delta with the removed capability
         CopyOnWriteSet<Capability> capPath = m_delta.getOrCompute(req);
@@ -1205,61 +1205,61 @@ class Candidates
 
     public boolean canRemoveCandidate(Requirement req)
     {
-        CandidateSelector candidates = getSelector(req);
-        if (candidates != null)
-        {
-            Capability current = candidates.getCurrentCandidate();
-            if (current != null)
-            {
-                // IMPLEMENTATION NOTE:
-                // Here we check for a req that is used for a substitutable export.
-                // If we find a substitutable req then an extra check is done to see
-                // if the substitutable capability is currently depended on as the
-                // only provider of some other requirement.  If it is then we do not
-                // allow the candidate to be removed.
-                // This is done because of the way we attempt to reduce permutations
-                // checked by permuting all used requirements that conflict with a
-                // directly imported/required capability in one go.
-                // If we allowed these types of substitutable requirements to move
-                // to the next capability then the permutation would be thrown out
-                // because it would cause some other resource to not resolve.
-                // That in turn would throw out the complete permutation along with
-                // any follow on permutations that could have resulted.
-                // See ResolverImpl::checkPackageSpaceConsistency
-
-                // Check if the current candidate is substitutable by the req;
-                // This check is necessary here because of the way we traverse used blames
-                // allows multiple requirements to be permuted in one Candidates
-                if (req.equals(m_subtitutableMap.get(current)))
-                {
-                    // this is a substitute req,
-                    // make sure there is not an existing dependency that would fail if we substitute
-                    Set<Requirement> dependents = m_dependentMap.get(current);
-                    if (dependents != null)
-                    {
-                        for (Requirement dependent : dependents)
-                        {
-                            CandidateSelector dependentSelector = getSelector(dependent);
-                            // If the dependent selector only has one capability left then check if
-                            // the current candidate is the selector's current candidate.
-                            if (dependentSelector != null
-                                    && dependentSelector.getRemainingCandidateCount() <= 1)
-                            {
-                                if (current.equals(
-                                        dependentSelector.getCurrentCandidate()))
-                                {
-                                    // return false since we do not want to allow this requirement
-                                    // to substitute the capability
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            return candidates.getRemainingCandidateCount() > 1 || Util.isOptional(req);
-        }
-        return false;
+//        CandidateSelector candidates = getSelector(req);
+//        if (candidates != null)
+//        {
+//            Capability current = candidates.getCurrentCandidate();
+//            if (current != null)
+//            {
+//                // IMPLEMENTATION NOTE:
+//                // Here we check for a req that is used for a substitutable export.
+//                // If we find a substitutable req then an extra check is done to see
+//                // if the substitutable capability is currently depended on as the
+//                // only provider of some other requirement.  If it is then we do not
+//                // allow the candidate to be removed.
+//                // This is done because of the way we attempt to reduce permutations
+//                // checked by permuting all used requirements that conflict with a
+//                // directly imported/required capability in one go.
+//                // If we allowed these types of substitutable requirements to move
+//                // to the next capability then the permutation would be thrown out
+//                // because it would cause some other resource to not resolve.
+//                // That in turn would throw out the complete permutation along with
+//                // any follow on permutations that could have resulted.
+//                // See ResolverImpl::checkPackageSpaceConsistency
+//
+//                // Check if the current candidate is substitutable by the req;
+//                // This check is necessary here because of the way we traverse used blames
+//                // allows multiple requirements to be permuted in one Candidates
+//                if (req.equals(m_subtitutableMap.get(current)))
+//                {
+//                    // this is a substitute req,
+//                    // make sure there is not an existing dependency that would fail if we substitute
+//                    Set<Requirement> dependents = m_dependentMap.get(current);
+//                    if (dependents != null)
+//                    {
+//                        for (Requirement dependent : dependents)
+//                        {
+//                            CandidateSelector dependentSelector = getSelector(dependent);
+//                            // If the dependent selector only has one capability left then check if
+//                            // the current candidate is the selector's current candidate.
+//                            if (dependentSelector != null
+//                                    && dependentSelector.getRemainingCandidateCount() <= 1)
+//                            {
+//                                if (current.equals(
+//                                        dependentSelector.getCurrentCandidate()))
+//                                {
+//                                    // return false since we do not want to allow this requirement
+//                                    // to substitute the capability
+//                                    return false;
+//                                }
+//                            }
+//                        }
+//                    }
+//                }
+//            }
+//            return candidates.getRemainingCandidateCount() > 1 || Util.isOptional(req);
+//        }
+		return true;
     }
 
     static class DynamicImportFailed extends ResolutionError {
@@ -1419,9 +1419,19 @@ class Candidates
 
         public boolean isBetterThan(FaultyResourcesReport other) {
             if (mandatory.size() < other.mandatory.size()) {
+				System.out.println("This mandatory (" + mandatory.size() + ") is smaller than other ("
+						+ other.mandatory.size() + ")");
+				return true;
+			}
+			if (optional.size() < other.optional.size()) {
+				System.out.println("This optional (" + optional.size() + ") is smaller than other ("
+						+ other.optional.size() + ")");
                 return true;
             }
-            return optional.size() < other.optional.size();
+			System.out
+					.println("other is better! this mandatory=" + mandatory.size() + " other=" + other.mandatory.size()
+							+ ", this optional=" + optional.size() + " other=" + other.optional.size());
+			return false;
         }
 
         public boolean isMissingMandatory() {
