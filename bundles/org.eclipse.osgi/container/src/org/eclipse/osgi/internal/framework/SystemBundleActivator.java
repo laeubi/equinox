@@ -121,7 +121,8 @@ public class SystemBundleActivator implements BundleActivator {
 
 		props.clear();
 		props.put(Constants.SERVICE_RANKING, Integer.MIN_VALUE);
-		register(bc, Resolver.class, new ResolverImpl(new Logger(0), null), false, props);
+		Resolver resolver = new ResolverImpl(new Logger(0), null);
+		register(bc, Resolver.class, resolver, false, props);
 
 		register(bc, DebugOptions.class, dbgOptions, null);
 

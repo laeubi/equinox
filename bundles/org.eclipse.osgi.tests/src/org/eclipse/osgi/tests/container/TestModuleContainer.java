@@ -4409,6 +4409,7 @@ public class TestModuleContainer extends AbstractTest {
 
 	@Test
 	public void testBcSet() throws Exception {
+		System.setProperty("resolver2", "true");
 		ResolutionReport result = resolveModuleDatabaseDump("bc", 10, TimeUnit.MINUTES);
 		assertSucessfulWith(result, 100000, 100000, 100000, 100000);
 	}
@@ -4451,12 +4452,19 @@ public class TestModuleContainer extends AbstractTest {
 		AtomicBoolean timeout = new AtomicBoolean();
 		ScheduledFuture<?> watch = watchDog.schedule(() -> timeout.set(true), batchTimeout, timeoutUnit);
 		ResolutionReport report = container.resolve(container.getModules(), true);
+		System.out.println(report.getResolutionException());
 		watch.cancel(true);
 		assertFalse("Resolve operation timed out!", timeout.get());
 		for (Module module : modules) {
 			if (!Module.RESOLVED_SET.contains(module.getState())) {
 				ModuleRevision revision = module.getCurrentRevision();
-				fail(revision + " is not resolved");
+				Exception ex = null;
+				try {
+					module.start();
+				} catch (Exception e) {
+					ex = e;
+				}
+				fail(revision + " is not resolved: " + ex);
 			}
 		}
 		return report;

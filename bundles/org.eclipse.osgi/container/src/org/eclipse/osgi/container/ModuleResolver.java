@@ -42,7 +42,6 @@ import java.util.function.Function;
 import org.apache.felix.resolver.Logger;
 import org.apache.felix.resolver.PermutationType;
 import org.apache.felix.resolver.ResolutionError;
-import org.apache.felix.resolver.ResolverImpl;
 import org.eclipse.osgi.container.ModuleRequirement.DynamicModuleRequirement;
 import org.eclipse.osgi.container.namespaces.EquinoxFragmentNamespace;
 import org.eclipse.osgi.internal.container.InternalUtils;
@@ -1204,7 +1203,8 @@ final class ModuleResolver {
 			Map<Resource, List<Wire>> interimResults = null;
 			try {
 				transitivelyResolveFailures.addAll(revisions);
-				interimResults = new ResolverImpl(logger, this).resolve(this);
+				Resolver resolver = ResolverFactory.create(logger, this);
+				interimResults = resolver.resolve(this);
 				applyInterimResultToWiringCopy(interimResults);
 				if (DEBUG_ROOTS) {
 					adaptor.trace(OPTION_ROOTS, "Resolver: resolved " + interimResults.size() + " bundles."); //$NON-NLS-1$ //$NON-NLS-2$
@@ -1502,7 +1502,8 @@ final class ModuleResolver {
 		}
 
 		private Map<Resource, List<Wire>> resolveDynamic() throws ResolutionException {
-			return new ResolverImpl(new Logger(0), null).resolveDynamic(this, wirings.get(dynamicReq.getResource()),
+			Resolver resolver = ResolverFactory.create();
+			return resolver.resolveDynamic(this, wirings.get(dynamicReq.getResource()),
 					dynamicReq.getOriginal());
 		}
 
