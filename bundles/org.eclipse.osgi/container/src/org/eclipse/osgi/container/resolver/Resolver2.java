@@ -4,8 +4,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.felix.resolver.ResolutionError;
 import org.apache.felix.resolver.Util;
 import org.eclipse.osgi.container.ModuleContainer;
+import org.eclipse.osgi.container.resolver.check.Candidates;
+import org.eclipse.osgi.container.resolver.check.PackageSpaces;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
@@ -27,18 +33,72 @@ public class Resolver2 implements Resolver {
 			Wiring val = entry.getValue();
 			System.out.println(ModuleContainer.toString(key));
 		}
-		System.out.println("Mandatory Resources:");
+		System.out.println("Mandatory Resources: " + context.getMandatoryResources().size());
 		Map<Resource, List<Wire>> map = new HashMap<>();
+		List<ResolverResource> resources = new ArrayList<>();
 		for (Resource resource : context.getMandatoryResources()) {
-			System.out.println("\t" + ModuleContainer.toString(resource));
-			resolveResource(resource, context, map);
+			resources.add(new ResolverResource(resource, context, true));
 		}
-		System.out.println("Optional Resources:");
+		System.out.println("Optional Resources:" + context.getOptionalResources().size());
 		for (Resource resource : context.getOptionalResources()) {
-			System.out.println("\t" + ModuleContainer.toString(resource));
-			resolveResource(resource, context, map);
+			resources.add(new ResolverResource(resource, context, false));
 		}
+		for (ResolverResource resolverResource : resources) {
+//			resolveResource(resolverResource);
+			map.put(resolverResource.getResource(), resolverResource.wires().collect(Collectors.toList()));
+		}
+		ResolutionError consistency = PackageSpaces.checkConsistency(new Candidates(map, resources), context);
+		System.out.println("consistency=" + consistency);
 		return map;
+	}
+
+	private void resolveResource(ResolverResource resolverResource) {
+		System.out.println("== resolve " + ModuleContainer.toString(resolverResource.getResource()) + " ==");
+		Map<Requirement, List<ResolverWire>> map = resolverResource.getMap();
+		int total = 0;
+		for (Map.Entry<Requirement, List<ResolverWire>> entry : map.entrySet()) {
+			Requirement key = entry.getKey();
+			List<ResolverWire> val = entry.getValue();
+			int size = val.size();
+			if (size > 1 && !Util.isOptional(key)) {
+				if (total == 0) {
+					total = size;
+				} else {
+					total *= size;
+				}
+				System.out.println("- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
+				for (ResolverWire resolverWire : val) {
+					checkUseConstrainViolation(resolverWire);
+				}
+			}
+		}
+		if (total > 0) {
+			System.out.println("Exhaustive search requires " + total + " permutations!");
+		}
+
+	}
+
+	private void checkUseConstrainViolation(ResolverWire resolverWire) {
+		String packageName = resolverWire.getPackageName();
+		if (packageName != null && !packageName.isEmpty()) {
+			Map<Requirement, ResolverWire> singletons = resolverWire.getResource().getSingletons();
+			for (Map.Entry<Requirement, ResolverWire> entry : singletons.entrySet()) {
+				Requirement key = entry.getKey();
+				ResolverWire val = entry.getValue();
+				Set<String> uses = val.getUses();
+				if (uses.contains(packageName) && !Objects.equals(val.getProvider(), resolverWire.getProvider())) {
+					// TODO only invalid if we are a provider of the resolver wire requirement as
+					// well!
+					String reason = "Uses-constraint conflict with import '" + val.getPackageName() + " that is provided by "
+							+ Util.toString(val.getProvider()) + " and no other alterative can be selected";
+					System.out.println("\tdisable " + resolverWire + ": " + reason);
+					resolverWire.setNotSelectable(
+							reason);
+					return;
+				}
+			}
+		}
+		System.out.println("\tcandidate: " + resolverWire);
 	}
 
 	private void resolveResource(Resource resource, ResolveContext context, Map<Resource, List<Wire>> map) {
@@ -64,8 +124,7 @@ public class Resolver2 implements Resolver {
 			}
 			Capability capability = providers.get(0);
 
-			list
-					.add(new WireImpl(resource, requirement, capability.getResource(), capability));
+			list.add(new WireImpl(resource, requirement, capability.getResource(), capability));
 		}
 
 	}
