@@ -20,6 +20,7 @@ package org.eclipse.osgi.container.resolver.check;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map.Entry;
 import org.apache.felix.resolver.ResolutionError;
 import org.apache.felix.resolver.Util;
@@ -29,6 +30,7 @@ import org.osgi.resource.Capability;
 import org.osgi.resource.Namespace;
 import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
+import org.osgi.resource.Wire;
 import org.osgi.service.resolver.ResolutionException;
 import org.osgi.service.resolver.ResolveContext;
 
@@ -205,33 +207,28 @@ final class UseConstraintError extends ResolutionError {
 
     private Capability getSatisfyingCapability(Requirement req)
     {
-//        // If the requiring revision is not resolved, then check in the
-//        // candidate map for its matching candidate.
-//        Capability cap = m_allCandidates.getFirstCandidate(req);
-//        // Otherwise, if the requiring revision is resolved then check
-//        // in its wires for the capability satisfying the requirement.
-//        if (cap == null && m_context.getWirings().containsKey(req.getResource()))
-//        {
-//            List<Wire> wires =
-//                    m_context.getWirings().get(req.getResource()).getRequiredResourceWires(null);
-		//// req = ResolverImpl.getDeclaredRequirement(req);
-//            for (Wire w : wires)
-//            {
-//                if (w.getRequirement().equals(req))
-//                {
-//                    // TODO: RESOLVER - This is not 100% correct, since requirements for
-//                    //       dynamic imports with wildcards will reside on many wires and
-//                    //       this code only finds the first one, not necessarily the correct
-//                    //       one. This is only used for the diagnostic message, but it still
-//                    //       could confuse the user.
-//                    cap = w.getCapability();
-//                    break;
-//                }
-//            }
-//        }
+		// If the requiring revision is not resolved, then check in the
+		// candidate map for its matching candidate.
+		Capability cap = m_allCandidates.getFirstCandidate(req);
+		// Otherwise, if the requiring revision is resolved then check
+		// in its wires for the capability satisfying the requirement.
+		if (cap == null && m_context.getWirings().containsKey(req.getResource())) {
+			List<Wire> wires = m_context.getWirings().get(req.getResource()).getRequiredResourceWires(null);
+//			req = ResolverImpl.getDeclaredRequirement(req);
+			for (Wire w : wires) {
+				if (w.getRequirement().equals(req)) {
+					// TODO: RESOLVER - This is not 100% correct, since requirements for
+					// dynamic imports with wildcards will reside on many wires and
+					// this code only finds the first one, not necessarily the correct
+					// one. This is only used for the diagnostic message, but it still
+					// could confuse the user.
+					cap = w.getCapability();
+					break;
+				}
+			}
+		}
 
-//        return cap;
-		return null;
+		return cap;
     }
 
     @Override

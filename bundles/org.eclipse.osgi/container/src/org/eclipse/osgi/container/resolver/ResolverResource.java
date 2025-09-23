@@ -87,4 +87,20 @@ public class ResolverResource {
 		return Util.getSymbolicName(resource) + " " + Util.getVersion(resource);
 	}
 
+	public Capability getFirstCandidate(Requirement req) {
+		List<ResolverWire> list = wireMap.get(req);
+		if (list != null && list.size() > 0) {
+			return list.get(0).getCapability();
+		}
+		return null;
+	}
+
+	public List<Capability> getCandidates(Requirement req) {
+		List<ResolverWire> list = wireMap.get(req);
+		if (list != null) {
+			return list.stream().map(rw -> rw.getCapability()).collect(Collectors.toList());
+		}
+		return null;
+	}
+
 }

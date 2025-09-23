@@ -43,12 +43,23 @@ public class Candidates
 	}
 
 	public Capability getFirstCandidate(Requirement req) {
-		// TODO Auto-generated method stub
+		for (ResolverResource resolverResource : resources) {
+			Capability cap = resolverResource.getFirstCandidate(req);
+			if (cap != null) {
+				return cap;
+			}
+		}
 		return null;
 	}
 
 	public List<Capability> getCandidates(Requirement req) {
-		// TODO Auto-generated method stub
+		for (ResolverResource resolverResource : resources) {
+			List<Capability> list = resolverResource.getCandidates(req);
+			if (list != null) {
+				return list.isEmpty() ? null : list;
+			}
+		}
+
 		return null;
 	}
 
