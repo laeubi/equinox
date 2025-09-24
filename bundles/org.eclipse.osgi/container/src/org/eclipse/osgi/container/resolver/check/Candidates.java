@@ -25,16 +25,13 @@ import org.eclipse.osgi.container.resolver.ResolverResource;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
-import org.osgi.resource.Wire;
 
 public class Candidates
 {
 
-	private Map<Resource, List<Wire>> map;
-	private List<ResolverResource> resources;
+	private Map<Resource, ResolverResource> resources;
 
-	public Candidates(Map<Resource, List<Wire>> map, List<ResolverResource> resources) {
-		this.map = map;
+	public Candidates(Map<Resource, ResolverResource> resources) {
 		this.resources = resources;
 	}
 
@@ -43,24 +40,13 @@ public class Candidates
 	}
 
 	public Capability getFirstCandidate(Requirement req) {
-		for (ResolverResource resolverResource : resources) {
-			Capability cap = resolverResource.getFirstCandidate(req);
-			if (cap != null) {
-				return cap;
-			}
-		}
-		return null;
+		ResolverResource resolverResource = resources.get(req.getResource());
+		return resolverResource.getFirstCandidate(req);
 	}
 
 	public List<Capability> getCandidates(Requirement req) {
-		for (ResolverResource resolverResource : resources) {
-			List<Capability> list = resolverResource.getCandidates(req);
-			if (list != null) {
-				return list.isEmpty() ? null : list;
-			}
-		}
-
-		return null;
+		ResolverResource resolverResource = resources.get(req.getResource());
+		return resolverResource.getCandidates(req);
 	}
 
 	public Candidates copy() {
@@ -68,8 +54,7 @@ public class Candidates
 	}
 
 	public Collection<Resource> getResources() {
-		return map.keySet();
+		return resources.keySet();
 	}
-
 
 }

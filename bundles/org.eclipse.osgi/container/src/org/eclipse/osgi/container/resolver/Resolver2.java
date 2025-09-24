@@ -1,7 +1,9 @@
 package org.eclipse.osgi.container.resolver;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,6 +14,7 @@ import org.apache.felix.resolver.Util;
 import org.eclipse.osgi.container.ModuleContainer;
 import org.eclipse.osgi.container.resolver.check.Candidates;
 import org.eclipse.osgi.container.resolver.check.PackageSpaces;
+import org.eclipse.osgi.container.resolver.check.UseConstraintError;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
 import org.osgi.resource.Resource;
@@ -35,20 +38,36 @@ public class Resolver2 implements Resolver {
 		}
 		System.out.println("Mandatory Resources: " + context.getMandatoryResources().size());
 		Map<Resource, List<Wire>> map = new HashMap<>();
-		List<ResolverResource> resources = new ArrayList<>();
+		Map<Resource, ResolverResource> resources = new LinkedHashMap<>();
 		for (Resource resource : context.getMandatoryResources()) {
-			resources.add(new ResolverResource(resource, context, true));
+			resources.put(resource, new ResolverResource(resource, context, true));
 		}
 		System.out.println("Optional Resources:" + context.getOptionalResources().size());
 		for (Resource resource : context.getOptionalResources()) {
-			resources.add(new ResolverResource(resource, context, false));
+			resources.put(resource, new ResolverResource(resource, context, false));
 		}
-		for (ResolverResource resolverResource : resources) {
+		for (ResolverResource resolverResource : resources.values()) {
 //			resolveResource(resolverResource);
 			map.put(resolverResource.getResource(), resolverResource.wires().collect(Collectors.toList()));
 		}
-		ResolutionError consistency = PackageSpaces.checkConsistency(new Candidates(map, resources), context);
-		System.out.println("consistency=" + consistency);
+		List<ResolutionError> consistencyErrors = PackageSpaces
+				.checkConsistency(new Candidates(resources),
+				context);
+		if (!consistencyErrors.isEmpty()) {
+			System.out.println("!!!! there are " + consistencyErrors.size() + " use constrain violations !!!!");
+			for (ResolutionError resolutionError : consistencyErrors) {
+				if (resolutionError instanceof UseConstraintError) {
+					UseConstraintError error = (UseConstraintError) resolutionError;
+					System.out.println(error);
+					System.out.println("---");
+					Collection<Requirement> requirements = error.getUnresolvedRequirements();
+					for (Requirement requirement : requirements) {
+						System.out.println(ModuleContainer.toString(requirement));
+					}
+					System.out.println();
+				}
+			}
+		}
 		return map;
 	}
 

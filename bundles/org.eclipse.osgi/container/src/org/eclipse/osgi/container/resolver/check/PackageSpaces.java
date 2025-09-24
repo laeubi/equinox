@@ -21,6 +21,7 @@ package org.eclipse.osgi.container.resolver.check;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,14 +48,14 @@ import org.osgi.service.resolver.ResolveContext;
 
 public class PackageSpaces {
 
-	public static ResolutionError checkConsistency(Candidates allCandidates, ResolveContext context) {
+	public static List<ResolutionError> checkConsistency(Candidates allCandidates, ResolveContext context) {
 		Logger logger = new Logger(0);
+		List<ResolutionError> list = new ArrayList<>();
 		try (ResolveSession session = new ResolveSession(context)) {
 			// Calculate package spaces
 			Map<Resource, Packages> resourcePkgMap = calculatePackageSpaces(session, allCandidates,
 					allCandidates.getResources(),
 					logger);
-			ResolutionError error = null;
 			// Check package consistency
 			Map<Resource, Object> resultCache = new OpenHashMap<Resource, Object>(resourcePkgMap.size());
 			for (Resource entry : allCandidates.getResources()) {
@@ -64,11 +65,18 @@ public class PackageSpaces {
 					return null;
 				}
 				if (rethrow != null) {
-					error = rethrow;
+					list.add(rethrow);
 				}
 			}
-			return error;
 		}
+		Collections.sort(list, new Comparator<ResolutionError>() {
+
+			@Override
+			public int compare(ResolutionError o1, ResolutionError o2) {
+				return o1.getMessage().compareTo(o2.getMessage());
+			}
+		});
+		return list;
 	}
 
 	private static Map<Resource, Packages> calculatePackageSpaces(final ResolveSession session,

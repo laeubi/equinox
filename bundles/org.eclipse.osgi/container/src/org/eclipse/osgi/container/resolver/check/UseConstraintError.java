@@ -34,7 +34,7 @@ import org.osgi.resource.Wire;
 import org.osgi.service.resolver.ResolutionException;
 import org.osgi.service.resolver.ResolveContext;
 
-final class UseConstraintError extends ResolutionError {
+public final class UseConstraintError extends ResolutionError {
 
     private final ResolveContext m_context;
     private final Candidates m_allCandidates;
