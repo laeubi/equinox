@@ -26,7 +26,10 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -3944,10 +3947,11 @@ public class TestModuleContainer extends AbstractTest {
 		assertSucessfulWith(report, 15, 62, 47, 5);
 	}
 
-	protected void assertSucessfulWith(ResolutionReport report, int maxProcessed, int maxSubstitution,
-			int maxUses, int maxImport) {
+	protected void assertSucessfulWith(ResolutionReport report, int maxProcessed, int maxSubstitution, int maxUses,
+			int maxImport) {
 		assertNull("Failed to resolve test.", report.getResolutionException());
-		assertNotMoreThanPermutationCreated(report, ResolutionReport::getProcessedPermutations, maxProcessed, "processed");
+		assertNotMoreThanPermutationCreated(report, ResolutionReport::getProcessedPermutations, maxProcessed,
+				"processed");
 		assertNotMoreThanPermutationCreated(report, ResolutionReport::getSubstitutionPermutations, maxSubstitution,
 				"substitution");
 		assertNotMoreThanPermutationCreated(report, ResolutionReport::getUsesPermutations, maxUses, "uses");
@@ -3960,10 +3964,9 @@ public class TestModuleContainer extends AbstractTest {
 		if (permutations > max) {
 			fail("Maximum of " + max + " " + type + " permutations expected but was " + permutations);
 		} else if (permutations < max) {
-			System.out.println(
-					"## [" + name.getMethodName() + "] The " + type + " permutations (" + permutations
-							+ ") are below the threshold (" + max
-							+ "), consider adjusting the testcase to assert the lower count!");
+			System.out.println("## [" + name.getMethodName() + "] The " + type + " permutations (" + permutations
+					+ ") are below the threshold (" + max
+					+ "), consider adjusting the testcase to assert the lower count!");
 		}
 		return;
 	}
@@ -4384,27 +4387,173 @@ public class TestModuleContainer extends AbstractTest {
 	public void testSubstitutionPackageResolution() throws Exception {
 		ResolutionReport result = resolveTestSet("set3");
 		// In this example we see the following:
-		// - libg has two possible choices for its substitution package, the internal one is chosen in first iteration -> resolved
-		// - util has two possible choices for its substitution package, the external one is chosen in first iteration -> libg
-		// - now util has to be removed as a provider only having libg as the only one left
-		// - bndlib now can only use libg for exceptions package but this conflicts with  result from util that has use constraint on exceptions package
-		// - on second iteration now libg chose external and drops it exports removing it from util+bndlib -> resolved state
+		// - libg has two possible choices for its substitution package, the internal
+		// one is chosen in first iteration -> resolved
+		// - util has two possible choices for its substitution package, the external
+		// one is chosen in first iteration -> libg
+		// - now util has to be removed as a provider only having libg as the only one
+		// left
+		// - bndlib now can only use libg for exceptions package but this conflicts with
+		// result from util that has use constraint on exceptions package
+		// - on second iteration now libg chose external and drops it exports removing
+		// it from util+bndlib -> resolved state
 		assertSucessfulWith(result, 1, 2, 1, 0);
 	}
 
 	@Test
 	public void testLargeSet() throws Exception {
-		ResolutionReport result = resolveModuleDatabaseDump("big", TimeUnit.MINUTES.toSeconds(5));
+		ResolutionReport result = resolveModuleDatabaseDump("big", TimeUnit.MINUTES.toSeconds(5)).report;
 		assertSucessfulWith(result, 1821, 29, 26359, 6736);
 	}
 
 	@Test
 	public void testSdkSet() throws Exception {
-		ResolutionReport result = resolveModuleDatabaseDump("sdk202509", TimeUnit.MINUTES.toSeconds(1));
+		ResolutionReport result = resolveModuleDatabaseDump("sdk202509", TimeUnit.MINUTES.toSeconds(1)).report;
 		assertSucessfulWith(result, 9, 18, 1, 42);
 	}
 
-	private ResolutionReport resolveModuleDatabaseDump(String testSetName, long batchTimeoutSeconds) throws Exception {
+	/**
+	 * This test a special situation where one bundle
+	 * <code>org.apache.sshd.osgi</code> has an optional import
+	 * (org.bouncycastle.openssl) and another import (org.bouncycastle.asn1.pkcs).
+	 * While the first is bound to a lower version (1.81.0) of provider bcpkix the
+	 * later is resolved to a higher version (1.82.0) of provider bcprov. As the
+	 * bcpkix provider also a requirement to the org.bouncycastle.openssl package
+	 * that is used there is a conflict. The solution should be to resolve the
+	 * optional import to the lower version to make the overall solution satisfiable
+	 * but still fulfill the optional import.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testOptionalsSet() throws Exception {
+		ResolveResult result = resolveModuleDatabaseDump("optionals", TimeUnit.MINUTES.toSeconds(1));
+		assertSucessfulWith(result.report, 17, 3, 97, 41);
+		for (Module module : result.modules) {
+			ModuleRevision revision = module.getCurrentRevision();
+			if (revision.getSymbolicName().equals("org.eclipse.egit.core")) {
+				why(revision, Set.of("bcpkix"), 0, new HashSet<>());
+				System.out.println("----");
+				why(revision, Set.of("org.eclipse.jgit.ssh.apache"), 0, new HashSet<>());
+			}
+
+//			if (revision.getSymbolicName().equals("org.apache.sshd.osgi")) {
+//				ModuleWiring wiring = revision.getWiring();
+//				List<BundleRequirement> requirements = wiring.getRequirements(PackageNamespace.PACKAGE_NAMESPACE);
+//				System.out.println("---required---");
+//				for (BundleRequirement bundleRequirement : requirements) {
+//					String filter = bundleRequirement.getDirectives().get(Namespace.REQUIREMENT_FILTER_DIRECTIVE);
+//					if (filter != null && filter.contains("osgi.wiring.package=org.bouncycastle.")) {
+//						System.out.println(bundleRequirement);
+//					}
+//				}
+//				System.out.println("---wired---");
+//				List<ModuleWire> wires = wiring.getRequiredModuleWires(PackageNamespace.PACKAGE_NAMESPACE);
+//				for (ModuleWire wire : wires) {
+//					String filter = wire.getRequirement().getDirectives().get(Namespace.REQUIREMENT_FILTER_DIRECTIVE);
+//					if (filter != null && filter.contains("osgi.wiring.package=org.bouncycastle.")) {
+//						System.out.println(wire);
+//					}
+//				}
+//				return;
+//			}
+			if (revision.getSymbolicName().equals("bcprov") || revision.getSymbolicName().equals("bcpkix")
+					|| revision.getSymbolicName().equals("bcutil") || revision.getSymbolicName().equals("bcpg")) {
+				System.out.println("=== " + revision.getSymbolicName() + " " + revision.getVersion() + " ===");
+				ModuleWiring wiring = revision.getWiring();
+				List<ModuleWire> wires = wiring.getProvidedModuleWires(null);
+				for (ModuleWire moduleWire : wires) {
+					System.out.println(ModuleContainer.toString(moduleWire.getCapability()));
+				}
+			}
+//				Set<Resource> wired = new HashSet<>();
+//				for (ModuleWire wire : wires) {
+//					wired.add(wire.getRequirer());
+//				}
+//				System.out.println("  Provides wires to ");
+//				for (Resource resource : wired) {
+//					System.out.println(
+//							"\t" + ModuleContainer.toString(resource) + " (uses " + getUsed(resource) + ")");
+//					// printProvided(resource);
+			////					printRequired(resource);
+//				}
+//			}
+		}
+//		fail("org.apache.sshd.osgi module not found!");
+	}
+
+	private void why(ModuleRevision revision, Set<String> bsns, int indent, Set<ModuleRevision> printed) {
+		if (printed.add(revision)) {
+			boolean used = false;
+//		System.out.println(" ".repeat(indent + 2) + ModuleContainer.toString(revision) + " requires " + bsn);
+			ModuleWiring wiring = revision.getWiring();
+			Set<ModuleRevision> providers = new HashSet<>();
+			for (ModuleWire required : wiring.getRequiredModuleWires(null)) {
+				ModuleRevision provider = required.getProvider();
+				String symbolicName = provider.getSymbolicName();
+				if (matches(symbolicName, bsns)) {
+					ModuleRequirement requirement = required.getRequirement();
+					System.out.println(" ".repeat(indent) + //
+							ModuleContainer.toString(requirement.getResource()) + //
+							" requires " + //
+							ModuleContainer.toString(provider) + //
+							" because of " + ModuleContainer.toString(requirement) + //
+							" satisfied by " + //
+							ModuleContainer.toString(required.getCapability()));
+					used = true;
+				}
+				providers.add(provider);
+			}
+			if (!used) {
+//				System.out.println(" ".repeat(indent) + //
+//						ModuleContainer.toString(revision) + //
+//						"does not use any of " + bsns);
+			}
+			for (ModuleRevision moduleRevision : providers) {
+				why(moduleRevision, bsns, indent + 2, printed);
+			}
+		}
+
+	}
+
+	private boolean matches(String symbolicName, Set<String> bsns) {
+		for (String string : bsns) {
+			if (string.contains(symbolicName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+//	private void printRequired(Resource resource) {
+//		if (resource instanceof ModuleRevision rev) {
+//			ModuleWiring wiring = rev.getWiring();
+//			for (ModuleWire required : wiring.getRequiredModuleWires(null)) {
+//				System.out.println("\t\t" + ModuleContainer.toString(required.getRequirement()) + " || "
+//						+ ModuleContainer.toString(required.getCapability()));
+//			}
+//		}
+//	}
+
+//	protected void printProvided(Resource resource) {
+//		if (resource instanceof ModuleRevision rev) {
+//			ModuleWiring wiring = rev.getWiring();
+//			List<ModuleWire> providedModuleWires = wiring.getProvidedModuleWires(null);
+//			for (ModuleWire provided : providedModuleWires) {
+//				System.out.println("\t\t" + ModuleContainer.toString(provided.getCapability()));
+//			}
+//		}
+//	}
+
+//	private String getUsed(Resource resource) {
+//		if (resource instanceof ModuleRevision rev) {
+//			return rev.getWiring().getRequiredModuleWires(null).stream().map(mw -> mw.getProvider()).distinct()
+//					.map(provider -> ModuleContainer.toString(provider)).collect(Collectors.joining(", "));
+//		}
+//		return "??";
+//	}
+
+	private ResolveResult resolveModuleDatabaseDump(String testSetName, long batchTimeoutSeconds) throws Exception {
 		URL entry = getBundle().getEntry("/test_files/containerTests/" + testSetName + ".state");
 		assertNotNull("can't find test set: " + testSetName, entry);
 		int maxThreads = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
@@ -4416,8 +4565,8 @@ public class TestModuleContainer extends AbstractTest {
 		};
 		ScheduledExecutorService watchDog = Executors.newSingleThreadScheduledExecutor();
 		RejectedExecutionHandler rejectHandler = (r, exe) -> r.run();
-		ExecutorService executor = new ThreadPoolExecutor(0, maxThreads, 1, TimeUnit.SECONDS, queue,
-				threadFactory, rejectHandler);
+		ExecutorService executor = new ThreadPoolExecutor(0, maxThreads, 1, TimeUnit.SECONDS, queue, threadFactory,
+				rejectHandler);
 		ScheduledExecutorService timeoutExecutor = new ScheduledThreadPoolExecutor(1);
 		Map<String, String> configuration = new HashMap<>();
 		configuration.put(EquinoxConfiguration.PROP_RESOLVER_BATCH_TIMEOUT,
@@ -4449,7 +4598,7 @@ public class TestModuleContainer extends AbstractTest {
 				fail(revision + " is not resolved");
 			}
 		}
-		return report;
+		return new ResolveResult(container.getModules(), report);
 	}
 
 	private ResolutionReport resolveTestSet(String testSetName) throws Exception {
@@ -4506,8 +4655,7 @@ public class TestModuleContainer extends AbstractTest {
 			bundles.add(dummyModule);
 		}
 		AtomicBoolean timeout = new AtomicBoolean();
-		ScheduledFuture<?> watch = watchDog.schedule(() -> timeout.set(true), batchTimeoutSeconds,
-				TimeUnit.SECONDS);
+		ScheduledFuture<?> watch = watchDog.schedule(() -> timeout.set(true), batchTimeoutSeconds, TimeUnit.SECONDS);
 		ResolutionReport report = container.resolve(bundles, true);
 		watch.cancel(true);
 		assertFalse("Resolve operation timed out!", timeout.get());
@@ -4553,5 +4701,42 @@ public class TestModuleContainer extends AbstractTest {
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * The main class takes a module database and compress/anonymous it by replace
+	 * all locations with a running number
+	 * 
+	 * @param args
+	 * @throws Exception
+	 */
+	public static void main(String[] args) throws Exception {
+		DummyContainerAdaptor adaptor = new DummyContainerAdaptor(new DummyCollisionHook(false), null);
+		DummyModuleDatabase moduleDatabase = adaptor.getDatabase();
+		try (DataInputStream stream = new DataInputStream(new FileInputStream(args[0]))) {
+			moduleDatabase.load(stream);
+		}
+		List<Module> modules = adaptor.getContainer().getModules();
+		Field field = Module.class.getDeclaredField("location");
+		field.setAccessible(true);
+		int cnt = 0;
+		for (Module module : modules) {
+			field.set(module, Integer.toString(cnt++));
+		}
+		try (DataOutputStream out = new DataOutputStream(new FileOutputStream(args[0] + ".compressed"))) {
+			moduleDatabase.store(out, false);
+		}
+	}
+
+	private static final class ResolveResult {
+
+		public List<Module> modules;
+		public ResolutionReport report;
+
+		public ResolveResult(List<Module> modules, ResolutionReport report) {
+			this.modules = modules;
+			this.report = report;
+		}
+
 	}
 }
