@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Stream;
 import org.apache.felix.resolver.Util;
 import org.osgi.resource.Capability;
@@ -40,8 +41,7 @@ public class Wires implements Iterable<ResolverWire> {
 		if (Util.isOptional(requirement)) {
 			return false;
 		}
-		// TODO only consider selected?
-		return wires.size() == 1;
+		return getSelectableWires() == 1;
 	}
 
 	public boolean providesCandidate(Resource provider) {
@@ -58,8 +58,29 @@ public class Wires implements Iterable<ResolverWire> {
 		return wires.iterator();
 	}
 
-	public ResolverWire get(int i) {
-		return wires.get(0);
+	public int getSelectableWires() {
+		int cnt = 0;
+		for (ResolverWire wire : wires) {
+			if (wire.isSelectable()) {
+				cnt++;
+			}
+		}
+		return cnt;
+	}
+
+	public Optional<ResolverWire> getSingelton() {
+		ResolverWire found = null;
+		for (ResolverWire wire : wires) {
+			if (wire.isSelectable()) {
+				if (found == null) {
+					found = wire;
+					return Optional.of(wire);
+				} else {
+					return Optional.empty();
+				}
+			}
+		}
+		return Optional.ofNullable(found);
 	}
 
 }

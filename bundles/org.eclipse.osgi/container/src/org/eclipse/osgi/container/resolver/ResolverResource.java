@@ -63,7 +63,7 @@ public class ResolverResource {
 	public Map<Requirement, ResolverWire> getSingletons() {
 
 		return wireMap.entrySet().stream().filter(e -> e.getValue().isSingleton())
-				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().get(0)));
+				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().getSingelton().get()));
 
 	}
 

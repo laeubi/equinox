@@ -88,38 +88,52 @@ public class Resolver2 implements Resolver {
 		Map<Requirement, Wires> map = resolverResource.getMap();
 		int total = 0;
 		long before = resolverResource.countUniqueSelected();
-		for (Entry<Requirement, Wires> entry : map.entrySet()) {
-			Requirement key = entry.getKey();
-			Wires wirecandidates = entry.getValue();
-			int size = wirecandidates.size();
-			if (size > 1 && !Util.isOptional(key)) {
-				if (total == 0) {
-					total = size;
-				} else {
-					total *= size;
-				}
-				logger.log(resolverResource,
-						"- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
-				for (ResolverWire resolverWire : wirecandidates) {
-					checkUseConstrainViolation(resolverWire, wirecandidates, logger);
+		boolean rerun;
+		do {
+			rerun = false;
+			Map<Requirement, ResolverWire> singletons = resolverResource.getSingletons();
+			if (singletons.isEmpty()) {
+				break;
+			}
+			logger.log(resolverResource, "Filtering use constrains with " + singletons.size() + " singeltons...");
+			for (Entry<Requirement, Wires> entry : map.entrySet()) {
+				Requirement key = entry.getKey();
+				Wires wirecandidates = entry.getValue();
+				int size = wirecandidates.getSelectableWires();
+				if (size > 1 && !Util.isOptional(key)) {
+					if (total == 0) {
+						total = size;
+					} else {
+						total *= size;
+					}
+					logger.log(resolverResource,
+							"- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
+					for (ResolverWire resolverWire : wirecandidates) {
+						checkUseConstrainViolation(resolverWire, wirecandidates, singletons, logger);
+					}
+					boolean singleton = wirecandidates.isSingleton();
+					if (singleton) {
+						logger.log(resolverResource, "-> is now a singelton!");
+					}
+					rerun |= singleton;
 				}
 			}
-		}
+			logger.log(resolverResource, "Rerun needed: " + rerun);
+		} while (rerun);
 		if (total > 0) {
 			logger.log(resolverResource, "Exhaustive search requires " + total + " permutations!");
 		}
 		long after = resolverResource.countUniqueSelected();
 		if (before != after) {
-			System.out.println((after - before) + " more are now unique selected");
+			logger.log(resolverResource, (after - before) + " more are now unique selected");
 		}
 	}
 
 	private void checkUseConstrainViolation(ResolverWire resolverWire, Wires wirecandidates,
-			ResolveLogger logger) {
+			Map<Requirement, ResolverWire> singletons, ResolveLogger logger) {
 		String packageName = resolverWire.getPackageName();
 		ResolverResource resource = resolverWire.getResource();
 		if (packageName != null && !packageName.isEmpty()) {
-			Map<Requirement, ResolverWire> singletons = resource.getSingletons();
 			for (Map.Entry<Requirement, ResolverWire> entry : singletons.entrySet()) {
 				ResolverWire singletonWire = entry.getValue();
 				Set<String> uses = singletonWire.getUses();
@@ -131,12 +145,13 @@ public class Resolver2 implements Resolver {
 							+ " and no other alternative can be selected because it is also a provider for this package";
 					logger.log(resource, "\tdisable " + resolverWire + ": " + reason);
 					resolverWire.setNotSelectable(reason);
-					// TODO we need to re-check everything if we made this a singleton!
+					// TODO actually only if it becomes a singelton
 					return;
 				}
 			}
 		}
 		logger.log(resource, "\tcandidate: " + resolverWire);
+		return;
 	}
 
 	private void resolveResource(Resource resource, ResolveContext context, Map<Resource, List<Wire>> map) {
