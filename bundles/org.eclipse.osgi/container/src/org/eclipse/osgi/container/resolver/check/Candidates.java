@@ -41,12 +41,22 @@ public class Candidates
 
 	public Capability getFirstCandidate(Requirement req) {
 		ResolverResource resolverResource = resources.get(req.getResource());
+		if (resolverResource == null) {
+			return null;
+		}
 		return resolverResource.getFirstCandidate(req);
 	}
 
 	public List<Capability> getCandidates(Requirement req) {
 		ResolverResource resolverResource = resources.get(req.getResource());
-		return resolverResource.getCandidates(req);
+		if (resolverResource == null) {
+			return null;
+		}
+		List<Capability> list = resolverResource.getCandidates(req);
+		if (list.isEmpty()) {
+			return null;
+		}
+		return list;
 	}
 
 	public Candidates copy() {

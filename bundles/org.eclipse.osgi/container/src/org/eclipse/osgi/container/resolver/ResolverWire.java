@@ -77,7 +77,7 @@ public class ResolverWire implements Wire {
 		if (ignoreReason != null) {
 			return ignoreReason;
 		}
-		if (resource.canResolve()) {
+		if (!resource.canResolve()) {
 			return "The resource " + resource + " can't resolve";
 		}
 		return null;

@@ -1,8 +1,9 @@
 package org.eclipse.osgi.container.resolver;
 
+import java.io.File;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,98 +27,124 @@ import org.osgi.service.resolver.Resolver;
 
 public class Resolver2 implements Resolver {
 
+	private static int index;
+
 	@Override
 	public Map<Resource, List<Wire>> resolve(ResolveContext context) throws ResolutionException {
-		Map<Resource, Wiring> wirings = context.getWirings();
-		System.out.println("===== resolver2.resolve() =====");
-		System.out.println("Wirings:");
-		for (Map.Entry<Resource, Wiring> entry : wirings.entrySet()) {
-			Resource key = entry.getKey();
-			Wiring val = entry.getValue();
-			System.out.println(ModuleContainer.toString(key));
-		}
-		System.out.println("Mandatory Resources: " + context.getMandatoryResources().size());
-		Map<Resource, List<Wire>> map = new HashMap<>();
-		Map<Resource, ResolverResource> resources = new LinkedHashMap<>();
-		for (Resource resource : context.getMandatoryResources()) {
-			resources.put(resource, new ResolverResource(resource, context, true));
-		}
-		System.out.println("Optional Resources:" + context.getOptionalResources().size());
-		for (Resource resource : context.getOptionalResources()) {
-			resources.put(resource, new ResolverResource(resource, context, false));
-		}
-		for (ResolverResource resolverResource : resources.values()) {
-//			resolveResource(resolverResource);
-			map.put(resolverResource.getResource(), resolverResource.wires().collect(Collectors.toList()));
-		}
-		List<ResolutionError> consistencyErrors = PackageSpaces
-				.checkConsistency(new Candidates(resources),
-				context);
-		if (!consistencyErrors.isEmpty()) {
-			System.out.println("!!!! there are " + consistencyErrors.size() + " use constrain violations !!!!");
-			for (ResolutionError resolutionError : consistencyErrors) {
-				if (resolutionError instanceof UseConstraintError) {
-					UseConstraintError error = (UseConstraintError) resolutionError;
-					System.out.println(error);
-					System.out.println("---");
-					Collection<Requirement> requirements = error.getUnresolvedRequirements();
-					for (Requirement requirement : requirements) {
-						System.out.println(ModuleContainer.toString(requirement));
-					}
-					System.out.println();
-				}
+		File logDir = new File("/tmp/resolver2/" + (index++));
+
+		try (ResolveLogger logger = new ResolveLogger(logDir)) {
+			Map<Resource, Wiring> wirings = context.getWirings();
+			System.out.println("===== resolver2.resolve() =====");
+			System.out.println("Wirings:");
+			for (Map.Entry<Resource, Wiring> entry : wirings.entrySet()) {
+				Resource key = entry.getKey();
+				Wiring val = entry.getValue();
+				System.out.println(ModuleContainer.toString(key));
 			}
+			System.out.println("Mandatory Resources: " + context.getMandatoryResources().size());
+			Map<Resource, List<Wire>> map = new HashMap<>();
+			Map<Resource, ResolverResource> resources = new LinkedHashMap<>();
+			for (Resource resource : context.getMandatoryResources()) {
+				resources.put(resource, new ResolverResource(resource, context, true));
+				logger.log(resource, "Mandatory Resource " + ModuleContainer.toString(resource));
+			}
+			System.out.println("Optional Resources:" + context.getOptionalResources().size());
+			for (Resource resource : context.getOptionalResources()) {
+				resources.put(resource, new ResolverResource(resource, context, false));
+				logger.log(resource, "Optional Resource " + ModuleContainer.toString(resource));
+			}
+			for (ResolverResource resolverResource : resources.values()) {
+				logger.log(resolverResource, "--- Initial State ---");
+				logger.dump(resolverResource);
+				resolveResource(resolverResource, logger);
+				logger.log(resolverResource, "--- Processed State ---");
+				logger.dump(resolverResource);
+				map.put(resolverResource.getResource(), resolverResource.wires().collect(Collectors.toList()));
+			}
+			List<ResolutionError> consistencyErrors = PackageSpaces.checkConsistency(new Candidates(resources),
+					context);
+			if (!consistencyErrors.isEmpty()) {
+				System.out.println("!!!! there are " + consistencyErrors.size() + " use constrain violations !!!!");
+				Set<Resource> faulty = new HashSet<>();
+				for (ResolutionError resolutionError : consistencyErrors) {
+					if (resolutionError instanceof UseConstraintError) {
+						UseConstraintError error = (UseConstraintError) resolutionError;
+						faulty.add(error.getResource());
+						logger.log(error);
+					}
+				}
+				System.out.println("Affected Resources (" + faulty.size() + "):");
+				faulty.stream().map(r -> ModuleContainer.toString(r)).sorted(String.CASE_INSENSITIVE_ORDER)
+						.forEach(System.out::println);
+			}
+			return map;
 		}
-		return map;
 	}
 
-	private void resolveResource(ResolverResource resolverResource) {
-		System.out.println("== resolve " + ModuleContainer.toString(resolverResource.getResource()) + " ==");
+	private void resolveResource(ResolverResource resolverResource, ResolveLogger logger) {
+		logger.log(resolverResource, "== resolve " + ModuleContainer.toString(resolverResource.getResource()) + " ==");
 		Map<Requirement, List<ResolverWire>> map = resolverResource.getMap();
 		int total = 0;
+		long before = resolverResource.countUniqueSelected();
 		for (Map.Entry<Requirement, List<ResolverWire>> entry : map.entrySet()) {
 			Requirement key = entry.getKey();
-			List<ResolverWire> val = entry.getValue();
-			int size = val.size();
+			List<ResolverWire> wirecandidates = entry.getValue();
+			int size = wirecandidates.size();
 			if (size > 1 && !Util.isOptional(key)) {
 				if (total == 0) {
 					total = size;
 				} else {
 					total *= size;
 				}
-				System.out.println("- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
-				for (ResolverWire resolverWire : val) {
-					checkUseConstrainViolation(resolverWire);
+				logger.log(resolverResource,
+						"- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
+				for (ResolverWire resolverWire : wirecandidates) {
+					checkUseConstrainViolation(resolverWire, wirecandidates, logger);
 				}
 			}
 		}
 		if (total > 0) {
-			System.out.println("Exhaustive search requires " + total + " permutations!");
+			logger.log(resolverResource, "Exhaustive search requires " + total + " permutations!");
 		}
-
+		long after = resolverResource.countUniqueSelected();
+		if (before != after) {
+			System.out.println((after - before) + " more are now unique selected");
+		}
 	}
 
-	private void checkUseConstrainViolation(ResolverWire resolverWire) {
+	private void checkUseConstrainViolation(ResolverWire resolverWire, List<ResolverWire> wirecandidates,
+			ResolveLogger logger) {
 		String packageName = resolverWire.getPackageName();
+		ResolverResource resource = resolverWire.getResource();
 		if (packageName != null && !packageName.isEmpty()) {
-			Map<Requirement, ResolverWire> singletons = resolverWire.getResource().getSingletons();
+			Map<Requirement, ResolverWire> singletons = resource.getSingletons();
 			for (Map.Entry<Requirement, ResolverWire> entry : singletons.entrySet()) {
-				Requirement key = entry.getKey();
-				ResolverWire val = entry.getValue();
-				Set<String> uses = val.getUses();
-				if (uses.contains(packageName) && !Objects.equals(val.getProvider(), resolverWire.getProvider())) {
-					// TODO only invalid if we are a provider of the resolver wire requirement as
-					// well!
-					String reason = "Uses-constraint conflict with import '" + val.getPackageName() + " that is provided by "
-							+ Util.toString(val.getProvider()) + " and no other alterative can be selected";
-					System.out.println("\tdisable " + resolverWire + ": " + reason);
-					resolverWire.setNotSelectable(
-							reason);
+				ResolverWire singletonWire = entry.getValue();
+				Set<String> uses = singletonWire.getUses();
+				Resource provider = singletonWire.getProvider();
+				if (uses.contains(packageName) && !Objects.equals(provider, resolverWire.getProvider())
+						&& providesCandidate(wirecandidates, provider)) {
+					String reason = "Uses-constraint conflict with import '" + singletonWire.getPackageName()
+							+ " that is provided by " + Util.toString(provider)
+							+ " and no other alternative can be selected because it is also a provider for this package";
+					logger.log(resource, "\tdisable " + resolverWire + ": " + reason);
+					resolverWire.setNotSelectable(reason);
+					// TODO we need to re-check everything if we made this a singleton!
 					return;
 				}
 			}
 		}
-		System.out.println("\tcandidate: " + resolverWire);
+		logger.log(resource, "\tcandidate: " + resolverWire);
+	}
+
+	private boolean providesCandidate(List<ResolverWire> wirecandidates, Resource provider) {
+		for (ResolverWire wire : wirecandidates) {
+			if (Objects.equals(wire.getProvider(), provider)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private void resolveResource(Resource resource, ResolveContext context, Map<Resource, List<Wire>> map) {

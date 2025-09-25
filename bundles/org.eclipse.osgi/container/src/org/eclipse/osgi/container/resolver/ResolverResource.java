@@ -39,6 +39,7 @@ public class ResolverResource {
 	}
 
 	public Resource getResource() {
+
 		return resource;
 	}
 
@@ -89,8 +90,12 @@ public class ResolverResource {
 
 	public Capability getFirstCandidate(Requirement req) {
 		List<ResolverWire> list = wireMap.get(req);
-		if (list != null && list.size() > 0) {
-			return list.get(0).getCapability();
+		if (list != null) {
+			for (ResolverWire resolverWire : list) {
+				if (resolverWire.isSelectable()) {
+					return resolverWire.getCapability();
+				}
+			}
 		}
 		return null;
 	}
@@ -98,9 +103,20 @@ public class ResolverResource {
 	public List<Capability> getCandidates(Requirement req) {
 		List<ResolverWire> list = wireMap.get(req);
 		if (list != null) {
-			return list.stream().map(rw -> rw.getCapability()).collect(Collectors.toList());
+			return list.stream().filter(rw -> rw.isSelectable()).map(rw -> rw.getCapability())
+					.collect(Collectors.toList());
 		}
 		return null;
+	}
+
+	public int countUniqueSelected() {
+		int unique = 0;
+		for (List<ResolverWire> wires : wireMap.values()) {
+			if (wires.size() == 1 || wires.stream().filter(rw -> rw.getReason() == null).count() == 1) {
+				unique++;
+			}
+		}
+		return unique;
 	}
 
 }
