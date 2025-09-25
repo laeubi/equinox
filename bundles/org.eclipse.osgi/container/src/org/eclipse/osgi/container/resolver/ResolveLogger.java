@@ -54,7 +54,11 @@ public class ResolveLogger implements AutoCloseable {
 		Map<Requirement, Wires> map = resolverResource.getMap();
 		for (Entry<Requirement, Wires> entry : map.entrySet()) {
 			Wires wires = entry.getValue();
-			pw.print("[" + wires.size() + "] ");
+			pw.print("[" + wires.size() + "]");
+			if (wires.isSubstitution()) {
+				pw.print("[S]");
+			}
+			pw.print(" ");
 			pw.print(ModuleContainer.toString(entry.getKey()));
 			if (Util.isOptional(entry.getKey())) {
 				pw.print(" (optional)");

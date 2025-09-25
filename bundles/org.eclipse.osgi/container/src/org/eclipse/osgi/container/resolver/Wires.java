@@ -13,6 +13,7 @@ import org.osgi.resource.Resource;
 public class Wires implements Iterable<ResolverWire> {
 	private final List<ResolverWire> wires;
 	private Requirement requirement;
+	private boolean substitution;
 
 	public Wires(ResolverResource resource, Requirement requirement, List<Capability> providers) {
 		this.requirement = requirement;
@@ -20,6 +21,11 @@ public class Wires implements Iterable<ResolverWire> {
 		for (Capability capability : providers) {
 			wires.add(new ResolverWire(resource, requirement, capability));
 		}
+		this.substitution = providers.stream().anyMatch(c -> Util.isSubstitutionPackage(requirement, c));
+	}
+
+	public boolean isSubstitution() {
+		return substitution;
 	}
 
 	public Stream<ResolverWire> stream() {
