@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
@@ -52,9 +51,9 @@ public class ResolveLogger implements AutoCloseable {
 
 	public void dump(ResolverResource resolverResource) {
 		PrintWriter pw = getWriter(resolverResource.getResource());
-		Map<Requirement, List<ResolverWire>> map = resolverResource.getMap();
-		for (Entry<Requirement, List<ResolverWire>> entry : map.entrySet()) {
-			List<ResolverWire> wires = entry.getValue();
+		Map<Requirement, Wires> map = resolverResource.getMap();
+		for (Entry<Requirement, Wires> entry : map.entrySet()) {
+			Wires wires = entry.getValue();
 			pw.print("[" + wires.size() + "] ");
 			pw.print(ModuleContainer.toString(entry.getKey()));
 			if (Util.isOptional(entry.getKey())) {

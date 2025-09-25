@@ -7,6 +7,7 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -84,12 +85,12 @@ public class Resolver2 implements Resolver {
 
 	private void resolveResource(ResolverResource resolverResource, ResolveLogger logger) {
 		logger.log(resolverResource, "== resolve " + ModuleContainer.toString(resolverResource.getResource()) + " ==");
-		Map<Requirement, List<ResolverWire>> map = resolverResource.getMap();
+		Map<Requirement, Wires> map = resolverResource.getMap();
 		int total = 0;
 		long before = resolverResource.countUniqueSelected();
-		for (Map.Entry<Requirement, List<ResolverWire>> entry : map.entrySet()) {
+		for (Entry<Requirement, Wires> entry : map.entrySet()) {
 			Requirement key = entry.getKey();
-			List<ResolverWire> wirecandidates = entry.getValue();
+			Wires wirecandidates = entry.getValue();
 			int size = wirecandidates.size();
 			if (size > 1 && !Util.isOptional(key)) {
 				if (total == 0) {
@@ -113,7 +114,7 @@ public class Resolver2 implements Resolver {
 		}
 	}
 
-	private void checkUseConstrainViolation(ResolverWire resolverWire, List<ResolverWire> wirecandidates,
+	private void checkUseConstrainViolation(ResolverWire resolverWire, Wires wirecandidates,
 			ResolveLogger logger) {
 		String packageName = resolverWire.getPackageName();
 		ResolverResource resource = resolverWire.getResource();
@@ -124,7 +125,7 @@ public class Resolver2 implements Resolver {
 				Set<String> uses = singletonWire.getUses();
 				Resource provider = singletonWire.getProvider();
 				if (uses.contains(packageName) && !Objects.equals(provider, resolverWire.getProvider())
-						&& providesCandidate(wirecandidates, provider)) {
+						&& wirecandidates.providesCandidate(provider)) {
 					String reason = "Uses-constraint conflict with import '" + singletonWire.getPackageName()
 							+ " that is provided by " + Util.toString(provider)
 							+ " and no other alternative can be selected because it is also a provider for this package";
@@ -136,15 +137,6 @@ public class Resolver2 implements Resolver {
 			}
 		}
 		logger.log(resource, "\tcandidate: " + resolverWire);
-	}
-
-	private boolean providesCandidate(List<ResolverWire> wirecandidates, Resource provider) {
-		for (ResolverWire wire : wirecandidates) {
-			if (Objects.equals(wire.getProvider(), provider)) {
-				return true;
-			}
-		}
-		return false;
 	}
 
 	private void resolveResource(Resource resource, ResolveContext context, Map<Resource, List<Wire>> map) {

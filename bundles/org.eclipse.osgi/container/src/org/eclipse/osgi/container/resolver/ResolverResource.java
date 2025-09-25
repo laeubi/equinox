@@ -1,6 +1,5 @@
 package org.eclipse.osgi.container.resolver;
 
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -19,7 +18,7 @@ public class ResolverResource {
 	private Resource resource;
 	private boolean mandatory;
 	private List<Requirement> requirements;
-	private Map<Requirement, List<ResolverWire>> wireMap = new LinkedHashMap<>();
+	private Map<Requirement, Wires> wireMap = new LinkedHashMap<>();
 
 	public ResolverResource(Resource resource, ResolveContext context, boolean mandatory) {
 		this.resource = resource;
@@ -30,11 +29,7 @@ public class ResolverResource {
 				continue;
 			}
 			List<Capability> providers = context.findProviders(requirement);
-			List<ResolverWire> wires = new ArrayList<>(providers.size());
-			for (Capability capability : providers) {
-				wires.add(new ResolverWire(this, requirement, capability));
-			}
-			wireMap.put(requirement, wires);
+			wireMap.put(requirement, new Wires(this, requirement, providers));
 		}
 	}
 
@@ -61,21 +56,15 @@ public class ResolverResource {
 		});
 	}
 
-	public Map<Requirement, List<ResolverWire>> getMap() {
+	public Map<Requirement, Wires> getMap() {
 		return wireMap;
 	}
 
 	public Map<Requirement, ResolverWire> getSingletons() {
-		return wireMap.entrySet().stream().filter(e -> isSingleton(e.getKey(), e.getValue()))
+
+		return wireMap.entrySet().stream().filter(e -> e.getValue().isSingleton())
 				.collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().get(0)));
 
-	}
-
-	private boolean isSingleton(Requirement requirement, List<ResolverWire> value) {
-		if (Util.isOptional(requirement)) {
-			return false;
-		}
-		return value.size() == 1;
 	}
 
 	public boolean canResolve() {
@@ -89,7 +78,7 @@ public class ResolverResource {
 	}
 
 	public Capability getFirstCandidate(Requirement req) {
-		List<ResolverWire> list = wireMap.get(req);
+		Wires list = wireMap.get(req);
 		if (list != null) {
 			for (ResolverWire resolverWire : list) {
 				if (resolverWire.isSelectable()) {
@@ -101,7 +90,7 @@ public class ResolverResource {
 	}
 
 	public List<Capability> getCandidates(Requirement req) {
-		List<ResolverWire> list = wireMap.get(req);
+		Wires list = wireMap.get(req);
 		if (list != null) {
 			return list.stream().filter(rw -> rw.isSelectable()).map(rw -> rw.getCapability())
 					.collect(Collectors.toList());
@@ -111,7 +100,7 @@ public class ResolverResource {
 
 	public int countUniqueSelected() {
 		int unique = 0;
-		for (List<ResolverWire> wires : wireMap.values()) {
+		for (Wires wires : wireMap.values()) {
 			if (wires.size() == 1 || wires.stream().filter(rw -> rw.getReason() == null).count() == 1) {
 				unique++;
 			}
