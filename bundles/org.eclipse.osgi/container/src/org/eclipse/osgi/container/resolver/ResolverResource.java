@@ -48,7 +48,7 @@ public class ResolverResource {
 
 	public Stream<Wire> wires() {
 		return wireMap.values().stream().flatMap(wl -> {
-			Optional<ResolverWire> first = wl.stream().filter(rw -> rw.isSelectable()).findFirst();
+			Optional<ResolverWire> first = wl.wires().filter(rw -> rw.isSelectable()).findFirst();
 			if (first.isPresent()) {
 				return Stream.of(first.get());
 			}
@@ -80,11 +80,7 @@ public class ResolverResource {
 	public Capability getFirstCandidate(Requirement req) {
 		Wires list = wireMap.get(req);
 		if (list != null) {
-			for (ResolverWire resolverWire : list) {
-				if (resolverWire.isSelectable()) {
-					return resolverWire.getCapability();
-				}
-			}
+			return list.getFirstSelectable().map(rw -> rw.getCapability()).orElse(null);
 		}
 		return null;
 	}
@@ -92,7 +88,7 @@ public class ResolverResource {
 	public List<Capability> getCandidates(Requirement req) {
 		Wires list = wireMap.get(req);
 		if (list != null) {
-			return list.stream().filter(rw -> rw.isSelectable()).map(rw -> rw.getCapability())
+			return list.wires().filter(rw -> rw.isSelectable()).map(rw -> rw.getCapability())
 					.collect(Collectors.toList());
 		}
 		return null;
@@ -101,7 +97,7 @@ public class ResolverResource {
 	public int countUniqueSelected() {
 		int unique = 0;
 		for (Wires wires : wireMap.values()) {
-			if (wires.size() == 1 || wires.stream().filter(rw -> rw.getReason() == null).count() == 1) {
+			if (wires.size() == 1 || wires.wires().filter(rw -> rw.getReason() == null).count() == 1) {
 				unique++;
 			}
 		}

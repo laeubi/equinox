@@ -7,6 +7,7 @@ import java.io.StringWriter;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 import org.apache.felix.resolver.Util;
 import org.eclipse.osgi.container.ModuleContainer;
 import org.eclipse.osgi.container.resolver.check.UseConstraintError;
@@ -64,24 +65,28 @@ public class ResolveLogger implements AutoCloseable {
 				pw.print(" (optional)");
 			}
 			pw.println(":");
-			int prio = 1;
-			for (ResolverWire resolverWire : wires) {
-				pw.print("\t");
-				String reason = resolverWire.getReason();
-				if (reason == null) {
-					pw.print("[" + prio + "] ");
-					prio++;
-				} else {
-					pw.print("[X] ");
+			wires.wires().forEach(new Consumer<ResolverWire>() {
+				int prio = 1;
+
+				@Override
+				public void accept(ResolverWire resolverWire) {
+					pw.print("\t");
+					String reason = resolverWire.getReason();
+					if (reason == null) {
+						pw.print("[" + prio + "] ");
+						prio++;
+					} else {
+						pw.print("[X] ");
+					}
+					pw.print(ModuleContainer.toString(resolverWire.getCapability()));
+					if (reason == null) {
+						pw.println();
+					} else {
+						pw.print(" - ");
+						pw.println(reason);
+					}
 				}
-				pw.print(ModuleContainer.toString(resolverWire.getCapability()));
-				if (reason == null) {
-					pw.println();
-				} else {
-					pw.print(" - ");
-					pw.println(reason);
-				}
-			}
+			});
 		}
 		pw.println();
 	}

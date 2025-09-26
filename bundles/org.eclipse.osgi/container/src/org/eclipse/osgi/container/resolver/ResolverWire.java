@@ -47,6 +47,10 @@ public class ResolverWire implements Wire {
 		return requirement;
 	}
 
+	public boolean isPackage() {
+		return isPackage;
+	}
+
 	@Override
 	public Resource getProvider() {
 		return getCapability().getResource();
@@ -86,6 +90,10 @@ public class ResolverWire implements Wire {
 	@Override
 	public String toString() {
 		return ModuleContainer.toString(requirement) + " --> " + ModuleContainer.toString(capability);
+	}
+
+	public boolean isOptional() {
+		return Util.isOptional(requirement);
 	}
 
 }

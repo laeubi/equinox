@@ -82,6 +82,10 @@ public final class UseConstraintError extends ResolutionError {
 		}
 	}
 
+	public Blame getOtherBlame() {
+		return m_blame2;
+	}
+
 	public Collection<Requirement> getUnresolvedRequirements() {
 		if (m_blame2 == null) {
 			// This is an export conflict so there is only the first blame;

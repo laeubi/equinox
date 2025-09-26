@@ -5,6 +5,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.felix.resolver.Util;
 import org.osgi.resource.Capability;
@@ -25,11 +26,17 @@ public class Wires implements Iterable<ResolverWire> {
 		this.substitution = providers.stream().anyMatch(c -> Util.isSubstitutionPackage(requirement, c));
 	}
 
+	private Wires(List<ResolverWire> wires, Requirement requirement, boolean substitution) {
+		this.wires = wires;
+		this.requirement = requirement;
+		this.substitution = substitution;
+	}
+
 	public boolean isSubstitution() {
 		return substitution;
 	}
 
-	public Stream<ResolverWire> stream() {
+	public Stream<ResolverWire> wires() {
 		return wires.stream();
 	}
 
@@ -41,7 +48,16 @@ public class Wires implements Iterable<ResolverWire> {
 		if (Util.isOptional(requirement)) {
 			return false;
 		}
-		return getSelectableWires() == 1;
+		boolean singelton = false;
+		for (ResolverWire resolverWire : wires) {
+			if (resolverWire.isSelectable()) {
+				if (singelton) {
+					return false;
+				}
+				singelton = true;
+			}
+		}
+		return singelton;
 	}
 
 	public boolean providesCandidate(Resource provider) {
@@ -53,19 +69,9 @@ public class Wires implements Iterable<ResolverWire> {
 		return false;
 	}
 
-	@Override
-	public Iterator<ResolverWire> iterator() {
-		return wires.iterator();
-	}
-
-	public int getSelectableWires() {
-		int cnt = 0;
-		for (ResolverWire wire : wires) {
-			if (wire.isSelectable()) {
-				cnt++;
-			}
-		}
-		return cnt;
+	public Wires getSelectableWires() {
+		List<ResolverWire> selectable = wires().filter(rw -> rw.isSelectable()).collect(Collectors.toList());
+		return new Wires(selectable, requirement, substitution);
 	}
 
 	public Optional<ResolverWire> getSingelton() {
@@ -74,13 +80,21 @@ public class Wires implements Iterable<ResolverWire> {
 			if (wire.isSelectable()) {
 				if (found == null) {
 					found = wire;
-					return Optional.of(wire);
 				} else {
 					return Optional.empty();
 				}
 			}
 		}
 		return Optional.ofNullable(found);
+	}
+
+	public Optional<ResolverWire> getFirstSelectable() {
+		return wires().filter(rw -> rw.isSelectable()).findFirst();
+	}
+
+	@Override
+	public Iterator<ResolverWire> iterator() {
+		return wires.iterator();
 	}
 
 }

@@ -86,56 +86,142 @@ public class Resolver2 implements Resolver {
 	private void resolveResource(ResolverResource resolverResource, ResolveLogger logger) {
 		logger.log(resolverResource, "== resolve " + ModuleContainer.toString(resolverResource.getResource()) + " ==");
 		Map<Requirement, Wires> map = resolverResource.getMap();
-		int total = 0;
 		long before = resolverResource.countUniqueSelected();
 		boolean rerun;
+		long start = System.currentTimeMillis();
 		do {
-			rerun = false;
-			Map<Requirement, ResolverWire> singletons = resolverResource.getSingletons();
-			if (singletons.isEmpty()) {
-				break;
+			logger.log(resolverResource, "> Check forward constrains <");
+			rerun = checkForwardUseConstrainViolations(resolverResource, logger, map);
+			logger.log(resolverResource, "> Check backward constrains <");
+			rerun |= checkBackwardUseConstrainViolations(resolverResource, logger, map);
+			if (rerun) {
+				logger.log(resolverResource, "> rerun needed <");
+			} else {
+				logger.log(resolverResource, "> completed after " + (System.currentTimeMillis() - start) + "ms <");
 			}
-			logger.log(resolverResource, "Filtering use constrains with " + singletons.size() + " singeltons...");
-			for (Entry<Requirement, Wires> entry : map.entrySet()) {
-				Requirement key = entry.getKey();
-				Wires wirecandidates = entry.getValue();
-				int size = wirecandidates.getSelectableWires();
-				if (size > 1 && !Util.isOptional(key)) {
-					if (total == 0) {
-						total = size;
-					} else {
-						total *= size;
-					}
-					logger.log(resolverResource,
-							"- must resolve " + ModuleContainer.toString(key) + " with " + size + " providers!");
-					for (ResolverWire resolverWire : wirecandidates) {
-						checkUseConstrainViolation(resolverWire, wirecandidates, singletons, logger);
-					}
-					boolean singleton = wirecandidates.isSingleton();
-					if (singleton) {
-						logger.log(resolverResource, "-> is now a singelton!");
-					}
-					rerun |= singleton;
-				}
-			}
-			logger.log(resolverResource, "Rerun needed: " + rerun);
 		} while (rerun);
-		if (total > 0) {
-			logger.log(resolverResource, "Exhaustive search requires " + total + " permutations!");
-		}
+
 		long after = resolverResource.countUniqueSelected();
 		if (before != after) {
 			logger.log(resolverResource, (after - before) + " more are now unique selected");
 		}
 	}
 
-	private void checkUseConstrainViolation(ResolverWire resolverWire, Wires wirecandidates,
+	/**
+	 * Checks for "backward" use constrain violation, that is for each requirement
+	 * that has more than one selectable wire we check if any of this has a use
+	 * constrain and if this is the case check if we also import / use this package
+	 * in any of the singelton selected packages
+	 * 
+	 * @param resolverResource
+	 * @param logger
+	 * @param map
+	 * @return
+	 */
+	private boolean checkBackwardUseConstrainViolations(ResolverResource resolverResource, ResolveLogger logger,
+			Map<Requirement, Wires> map) {
+		Map<Requirement, ResolverWire> singletons = resolverResource.getSingletons();
+		if (singletons.isEmpty()) {
+			return false;
+		}
+		for (Entry<Requirement, Wires> entry : map.entrySet()) {
+			Requirement key = entry.getKey();
+			Wires wirecandidates = entry.getValue();
+			Wires wires = wirecandidates.getSelectableWires();
+			if (wires.size() > 1) {
+				logger.log(resolverResource,
+						"- must resolve " + ModuleContainer.toString(key) + " with " + wires.size() + " providers!");
+				for (ResolverWire resolverWire : wires) {
+					if (checkBackwardUseConstrainViolations(resolverResource, resolverWire, singletons, wires,
+							logger)) {
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private boolean checkBackwardUseConstrainViolations(ResolverResource resolverResource, ResolverWire resolverWire,
+			Map<Requirement, ResolverWire> singletons, Wires wires, ResolveLogger logger) {
+		Set<String> uses = resolverWire.getUses();
+		for (Entry<Requirement, ResolverWire> entry : singletons.entrySet()) {
+			ResolverWire singelton = entry.getValue();
+			if (singelton.isOptional()) {
+				continue;
+			}
+			String packageName = singelton.getPackageName();
+			Resource provider = singelton.getProvider();
+			if (uses.contains(packageName) && wires.providesCandidate(provider)) {
+				if (!Objects.equals(provider, resolverWire.getProvider())) {
+					resolverWire.setNotSelectable(
+							"violates the use-constrain because it uses the package '" + packageName
+									+ "' that is uniquely provided by " + ModuleContainer.toString(provider)
+									+ " already");
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Checks for "forward" use constrain violations, that is for each requirement
+	 * that has more than one selectable wire, we check all singleton wires if the
+	 * have a use-constrain on this package and are a provider of the package. If
+	 * this is the case, we need to strike out providers not provideded by this
+	 * resource.
+	 * 
+	 * @param resolverResource
+	 * @param logger
+	 * @param map
+	 * @return
+	 */
+	private boolean checkForwardUseConstrainViolations(ResolverResource resolverResource, ResolveLogger logger,
+			Map<Requirement, Wires> map) {
+		boolean rerun;
+		boolean changed = false;
+		do {
+			rerun = false;
+			Map<Requirement, ResolverWire> singletons = resolverResource.getSingletons();
+			if (singletons.isEmpty()) {
+				break;
+			}
+			logger.log(resolverResource, "Filtering use constrains with " + singletons.size() + " singletons...");
+			for (Entry<Requirement, Wires> entry : map.entrySet()) {
+				Requirement key = entry.getKey();
+				Wires wirecandidates = entry.getValue();
+				Wires wires = wirecandidates.getSelectableWires();
+				if (wires.size() > 1) {
+					logger.log(resolverResource,
+							"- must resolve " + ModuleContainer.toString(key) + " with " + wires.size()
+									+ " providers!");
+					for (ResolverWire resolverWire : wires) {
+						checkForwardUseConstrainViolation(resolverWire, wirecandidates, singletons, logger);
+					}
+					boolean singleton = wirecandidates.isSingleton();
+					if (singleton) {
+						logger.log(resolverResource, "-> is now a singleton!");
+					}
+					rerun |= singleton;
+					changed |= singleton;
+				}
+			}
+			logger.log(resolverResource, "rerun needed: " + rerun);
+		} while (rerun);
+		return changed;
+	}
+
+	private void checkForwardUseConstrainViolation(ResolverWire resolverWire, Wires wirecandidates,
 			Map<Requirement, ResolverWire> singletons, ResolveLogger logger) {
 		String packageName = resolverWire.getPackageName();
 		ResolverResource resource = resolverWire.getResource();
 		if (packageName != null && !packageName.isEmpty()) {
 			for (Map.Entry<Requirement, ResolverWire> entry : singletons.entrySet()) {
 				ResolverWire singletonWire = entry.getValue();
+				if (singletonWire.isOptional()) {
+					continue;
+				}
 				Set<String> uses = singletonWire.getUses();
 				Resource provider = singletonWire.getProvider();
 				if (uses.contains(packageName) && !Objects.equals(provider, resolverWire.getProvider())
@@ -145,7 +231,6 @@ public class Resolver2 implements Resolver {
 							+ " and no other alternative can be selected because it is also a provider for this package";
 					logger.log(resource, "\tdisable " + resolverWire + ": " + reason);
 					resolverWire.setNotSelectable(reason);
-					// TODO actually only if it becomes a singelton
 					return;
 				}
 			}
