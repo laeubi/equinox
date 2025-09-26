@@ -57,6 +57,10 @@ public class Resolver2 implements Resolver {
 				resources.put(resource, new ResolverResource(resource, context, false));
 				logger.log(resource, "Optional Resource " + ModuleContainer.toString(resource));
 			}
+			List<ResolutionError> errors = PackageSpaces.checkConsistency(new Candidates(resources), context);
+			if (!errors.isEmpty()) {
+				System.out.println("There are inital " + errors.size() + " consistency errors");
+			}
 			boolean restart;
 			int round = 0;
 			do {
@@ -127,58 +131,116 @@ public class Resolver2 implements Resolver {
 				return false;
 			}
 			Optional<ResolverWire> singleton = resolverResource.getSingleton(source);
-			if (!singleton.isPresent()) {
-				// if it is not a singleton we should handle it differently
-				return false;
-			}
-			for (Requirement other : otherBlame.m_reqs) {
-				Resource otherResource = other.getResource();
-				if (!Objects.equals(otherResource, resource)) {
-					// we found it?!?
-					logger.log(resolverResource, "Try to modify " + ModuleContainer.toString(otherResource)
-							+ " requirement " + ModuleContainer.toString(other) + "...");
-					ResolverResource otherResolverResource = resources.get(otherResource);
-					if (otherResolverResource == null) {
-						return false; // Should this ever happen maybe with dynamic resolve???
-					}
-					Optional<Wires> selectableWires = otherResolverResource.getSelectableWires(other);
-					if (selectableWires.isPresent() && selectableWires.get().size() > 1) {
-						Wires wires = selectableWires.get();
-						Resource provider = ourBlame.m_cap.getResource();
-						if (wires.providesCandidate(provider)) {
-							for (ResolverWire resolverWire : wires) {
-								if (!resolverWire.providedBy(provider)) {
-									logger.log(resolverResource,
-											"Disable provider " + ModuleContainer.toString(resolverWire.getCapability())
-													+ " for this requirement");
-									// need to disable
-									String reason = "conflicts with use of " + ModuleContainer.toString(source) + " from "
-											+ ModuleContainer.toString(resource);
-									logger.log(otherResolverResource, "Disable provider "
-											+ ModuleContainer.toString(resolverWire.getCapability())
-											+ " for requirement " + ModuleContainer.toString(other) + " because it "
-											+ reason);
-									resolverWire.setNotSelectable(
-											reason);
-									if (wires.isSingleton()) {
-										// if it is now a singleton we should resolve again to disable even more
-										// things...
-										resolveUseConstrainViolations(otherResolverResource, logger);
+			if (singleton.isPresent()) {
+				for (Requirement other : otherBlame.m_reqs) {
+					Resource otherResource = other.getResource();
+					if (!Objects.equals(otherResource, resource)) {
+						// we found it?!?
+						logger.log(resolverResource, "Try to modify " + ModuleContainer.toString(otherResource)
+								+ " requirement " + ModuleContainer.toString(other) + "...");
+						ResolverResource otherResolverResource = resources.get(otherResource);
+						if (otherResolverResource == null) {
+							return false; // Should this ever happen maybe with dynamic resolve???
+						}
+						Optional<Wires> selectableWires = otherResolverResource.getSelectableWires(other);
+						if (selectableWires.isPresent() && selectableWires.get().size() > 1) {
+							Wires wires = selectableWires.get();
+							Resource provider = ourBlame.m_cap.getResource();
+							if (wires.providesCandidate(provider)) {
+								for (ResolverWire resolverWire : wires) {
+									if (!resolverWire.providedBy(provider)) {
+										logger.log(resolverResource,
+												"Disable provider "
+														+ ModuleContainer.toString(resolverWire.getCapability())
+														+ " for this requirement");
+										// need to disable
+										String reason = "conflicts with use of " + ModuleContainer.toString(source)
+												+ " from " + ModuleContainer.toString(resource);
+										logger.log(otherResolverResource,
+												"Disable provider "
+														+ ModuleContainer.toString(resolverWire.getCapability())
+														+ " for requirement " + ModuleContainer.toString(other)
+														+ " because it " + reason);
+										resolverWire.setNotSelectable(reason);
+										if (wires.isSingleton()) {
+											// if it is now a singleton we should resolve again to disable even more
+											// things...
+											resolveUseConstrainViolations(otherResolverResource, logger);
+										}
+										return true;
 									}
-									return true;
 								}
+							} else {
+								logger.log(resolverResource,
+										"... not possible, our resource is not a provider of the alternatives!");
 							}
 						} else {
-							logger.log(resolverResource,
-									"... not possible, our resource is not a provider of the alternatives!");
+							// TODO actually if other is an optional requirement it would be possible to
+							// disable the import!
+							logger.log(resolverResource, "... not possible, no alternatives!");
 						}
-					} else {
-						// TODO actually if other is an optional requirement it would be possible to
-						// disable the import!
-						logger.log(resolverResource, "... not possible, no alternatives!");
+					}
+				}
+			} else {
+				logger.log(resource, "Our blame " + ModuleContainer.toString(source)
+						+ " is not a singleton we have to choose between:");
+				Optional<Wires> selectableWires = resolverResource.getSelectableWires(source);
+				if (selectableWires.isPresent()) {
+					Wires wires = selectableWires.get();
+					for (ResolverWire resolverWire : wires) {
+						logger.log(resource, "  " + ModuleContainer.toString(resolverWire.getCapability()));
+					}
+					for (int i = 0; i < otherBlame.m_reqs.size(); i++) {
+						Requirement other = otherBlame.m_reqs.get(i);
+						if (Objects.equals(other.getResource(), resource)) {
+							logger.log(resource,
+									"The other requirement in conflict is " + ModuleContainer.toString(other));
+							Optional<ResolverWire> otherSingleton = resolverResource.getSingleton(other);
+							if (otherSingleton.isPresent()) {
+								Resource provider = otherSingleton.get().getProvider();
+								logger.log(resource, "The other requirement is a singleton provided by "
+										+ ModuleContainer.toString(provider) + ", check if we can limit...");
+								ResolverResource providerResource = resources.get(provider);
+								Capability firstCandidate = providerResource
+										.getFirstCandidate(otherBlame.m_reqs.get(i + 1));
+								logger.log(resource, "The provider for this is "
+										+ ModuleContainer.toString(providerResource.getResource()));
+								if (firstCandidate != null) {
+									logger.log(resource,
+											"The providers first candidate for " + ModuleContainer.toString(source)
+													+ " is " + ModuleContainer.toString(firstCandidate));
+									for (ResolverWire resolverWire : wires) {
+										if (!resolverWire.providedBy(firstCandidate.getResource())) {
+											resolverWire.setNotSelectable("transitive use constrain conflict with "
+													+ ModuleContainer.toString(source));
+											logger.log(resource, "Disable "
+													+ ModuleContainer.toString(resolverWire.getCapability()));
+											if (wires.isSingleton()) {
+												// if it is now a singleton we should resolve again to disable even more
+												// things...
+												resolveUseConstrainViolations(resolverResource, logger);
+											}
+											return true;
+										}
+									}
+									return false;
+								} else {
+									logger.log(resource, "The providers has no candidate for "
+											+ ModuleContainer.toString(source) + "!");
+									return false;
+								}
+							} else {
+								logger.log(resource,
+										"The other requirement is not a singleton we need to break out here!");
+								return false;
+							}
+						}
 					}
 				}
 			}
+		} else {
+			Resource resource = ourBlame.m_cap.getResource();
+			logger.log(resource, "Our blame has more then one requirement?");
 		}
 		return false;
 	}
@@ -254,10 +316,9 @@ public class Resolver2 implements Resolver {
 			Resource provider = singelton.getProvider();
 			if (uses.contains(packageName) && wires.providesCandidate(provider)) {
 				if (!Objects.equals(provider, resolverWire.getProvider())) {
-					resolverWire.setNotSelectable(
-							"violates the use-constrain because it uses the package '" + packageName
-									+ "' that is uniquely provided by " + ModuleContainer.toString(provider)
-									+ " already");
+					resolverWire.setNotSelectable("violates the use-constrain because it uses the package '"
+							+ packageName + "' that is uniquely provided by " + ModuleContainer.toString(provider)
+							+ " already");
 					return true;
 				}
 			}
@@ -293,9 +354,8 @@ public class Resolver2 implements Resolver {
 				Wires wirecandidates = entry.getValue();
 				Wires wires = wirecandidates.getSelectableWires();
 				if (wires.size() > 1) {
-					logger.log(resolverResource,
-							"- must resolve " + ModuleContainer.toString(key) + " with " + wires.size()
-									+ " providers!");
+					logger.log(resolverResource, "- must resolve " + ModuleContainer.toString(key) + " with "
+							+ wires.size() + " providers!");
 					for (ResolverWire resolverWire : wires) {
 						checkForwardUseConstrainViolation(resolverWire, wirecandidates, singletons, logger);
 					}
