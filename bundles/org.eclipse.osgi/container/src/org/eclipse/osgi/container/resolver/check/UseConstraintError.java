@@ -82,6 +82,10 @@ public final class UseConstraintError extends ResolutionError {
 		}
 	}
 
+	public Blame getOurBlame() {
+		return m_blame1;
+	}
+
 	public Blame getOtherBlame() {
 		return m_blame2;
 	}

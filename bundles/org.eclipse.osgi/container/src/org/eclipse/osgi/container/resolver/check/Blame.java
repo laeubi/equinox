@@ -23,7 +23,7 @@ import org.osgi.framework.namespace.PackageNamespace;
 import org.osgi.resource.Capability;
 import org.osgi.resource.Requirement;
 
-class Blame
+public class Blame
 {
     public final Capability m_cap;
     public final List<Requirement> m_reqs;

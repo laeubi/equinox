@@ -81,6 +81,7 @@ public class Wires implements Iterable<ResolverWire> {
 				if (found == null) {
 					found = wire;
 				} else {
+					// we found another so this is not singleton...
 					return Optional.empty();
 				}
 			}

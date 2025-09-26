@@ -1,6 +1,7 @@
 package org.eclipse.osgi.container.resolver;
 
 import java.util.Collections;
+import java.util.Objects;
 import java.util.Set;
 import org.apache.felix.resolver.Util;
 import org.eclipse.osgi.container.ModuleContainer;
@@ -94,6 +95,10 @@ public class ResolverWire implements Wire {
 
 	public boolean isOptional() {
 		return Util.isOptional(requirement);
+	}
+
+	public boolean providedBy(Resource provider) {
+		return Objects.equals(provider, capability.getResource());
 	}
 
 }

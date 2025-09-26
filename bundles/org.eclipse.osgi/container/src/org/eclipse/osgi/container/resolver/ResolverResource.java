@@ -104,4 +104,24 @@ public class ResolverResource {
 		return unique;
 	}
 
+	public Optional<ResolverWire> getSingleton(Requirement requirement) {
+		Wires wires = wireMap.get(requirement);
+		if (wires != null) {
+			return wires.getSingelton();
+		}
+		return Optional.empty();
+	}
+
+	public Optional<Wires> getSelectableWires(Requirement requirement) {
+		Wires wires = wireMap.get(requirement);
+		if (wires != null) {
+
+			Wires selectableWires = wires.getSelectableWires();
+			if (selectableWires.size() > 0) {
+				return Optional.of(selectableWires);
+			}
+		}
+		return Optional.empty();
+	}
+
 }
