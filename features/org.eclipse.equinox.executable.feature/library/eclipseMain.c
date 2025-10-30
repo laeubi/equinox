@@ -266,7 +266,7 @@ static _TCHAR* findProgram(_TCHAR* argv[]) {
     	program = malloc( size * sizeof(_TCHAR) );
     	result = GetModuleFileName( NULL, program, size );
     	/* Loop while buffer might be truncated (result == size means truncated) */
-    	while (result == size) {
+    	while (result == size && result != 0) {
     		free(program);
     		size *= 2;
     		program = malloc( size * sizeof(_TCHAR) );
