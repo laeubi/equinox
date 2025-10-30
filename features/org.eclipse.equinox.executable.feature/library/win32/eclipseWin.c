@@ -476,8 +476,8 @@ static _TCHAR* findLib( _TCHAR* command ) {
 	
 	/* for looking in the registry */
 	HKEY jreKey = NULL;
-	DWORD length = MAX_PATH;
-	_TCHAR keyName[MAX_PATH];
+	DWORD length = 0;
+	_TCHAR * keyName = NULL;
 	_TCHAR * jreKeyName;		
 	
 	if (command != NULL) {
@@ -521,24 +521,43 @@ static _TCHAR* findLib( _TCHAR* command ) {
 	/* Not found yet, try the registry, we will use the first vm >= 1.6 */
 	jreKeyName = _T("Software\\JavaSoft\\Java Runtime Environment");
 	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, jreKeyName, 0, KEY_READ, &jreKey) == ERROR_SUCCESS) {
-		if(RegQueryValueEx(jreKey, _T_ECLIPSE("CurrentVersion"), NULL, NULL, (void*)&keyName, &length) == ERROR_SUCCESS) {
-			path = checkVMRegistryKey(jreKey, keyName);
-			if (path != NULL) {
-				RegCloseKey(jreKey);
-				return path;
+		/* Query buffer size for CurrentVersion value */
+		length = 0;
+		if(RegQueryValueEx(jreKey, _T_ECLIPSE("CurrentVersion"), NULL, NULL, NULL, &length) == ERROR_SUCCESS && length > 0) {
+			_TCHAR* currentVersion = malloc(length);
+			if (currentVersion != NULL) {
+				if(RegQueryValueEx(jreKey, _T_ECLIPSE("CurrentVersion"), NULL, NULL, (void*)currentVersion, &length) == ERROR_SUCCESS) {
+					path = checkVMRegistryKey(jreKey, currentVersion);
+					if (path != NULL) {
+						free(currentVersion);
+						RegCloseKey(jreKey);
+						return path;
+					}
+				}
+				free(currentVersion);
 			}
 		}
 		j = 0;
-		length = MAX_PATH;
-		while (RegEnumKeyEx(jreKey, j++, keyName, &length, 0, 0, 0, 0) == ERROR_SUCCESS) {  
-			/*look for a 1.6+ vm*/
-			if( _tcsncmp(_T("1.6"), keyName, 3) <= 0 ) {
-				path = checkVMRegistryKey(jreKey, keyName);
-				if (path != NULL) {
-					RegCloseKey(jreKey);
-					return path;
+		/* Use a larger buffer for registry key names - 32767 is the max key name length in Windows */
+		length = 16384;
+		keyName = malloc(length * sizeof(_TCHAR));
+		if (keyName != NULL) {
+			DWORD keyNameLength;
+			while (1) {
+				keyNameLength = length;
+				if (RegEnumKeyEx(jreKey, j++, keyName, &keyNameLength, 0, 0, 0, 0) != ERROR_SUCCESS)
+					break;
+				/*look for a 1.6+ vm*/
+				if( _tcsncmp(_T("1.6"), keyName, 3) <= 0 ) {
+					path = checkVMRegistryKey(jreKey, keyName);
+					if (path != NULL) {
+						free(keyName);
+						RegCloseKey(jreKey);
+						return path;
+					}
 				}
 			}
+			free(keyName);
 		}
 		RegCloseKey(jreKey);
 	}
@@ -552,18 +571,25 @@ static _TCHAR* findLib( _TCHAR* command ) {
  * Does not close jreKey
  */
 static _TCHAR* checkVMRegistryKey(HKEY jreKey, _TCHAR* subKeyName) {
-	_TCHAR value[MAX_PATH];
+	_TCHAR *value = NULL;
 	HKEY subKey = NULL;
-	DWORD length = MAX_PATH;
+	DWORD length = 0;
 	_TCHAR *result = NULL;
 	struct _stat stats;
 	
 	if(RegOpenKeyEx(jreKey, subKeyName, 0, KEY_READ, &subKey) == ERROR_SUCCESS) {				
 		/*The RuntimeLib value should point to the library we want*/
-		if(RegQueryValueEx(subKey, _T("RuntimeLib"), NULL, NULL, (void*)&value, &length) == ERROR_SUCCESS) {
-			if (_tstat( value, &stats ) == 0 && (stats.st_mode & S_IFREG) != 0)
-			{	/*library exists*/
-				result = _tcsdup(value);
+		/* First query to get the required buffer size */
+		if(RegQueryValueEx(subKey, _T("RuntimeLib"), NULL, NULL, NULL, &length) == ERROR_SUCCESS && length > 0) {
+			value = malloc(length);
+			if (value != NULL) {
+				if(RegQueryValueEx(subKey, _T("RuntimeLib"), NULL, NULL, (void*)value, &length) == ERROR_SUCCESS) {
+					if (_tstat( value, &stats ) == 0 && (stats.st_mode & S_IFREG) != 0)
+					{	/*library exists*/
+						result = _tcsdup(value);
+					}
+				}
+				free(value);
 			}
 		}
 		RegCloseKey(subKey);

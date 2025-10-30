@@ -164,16 +164,28 @@ _TCHAR* findSymlinkCommand( _TCHAR* command, int resolve )
         if (firstDirSeparator( command ) != NULL)
         {
             /* It must be relative to the current directory. */
+#ifdef _WIN32
+            /* On Windows, passing NULL and 0 makes _getcwd allocate the buffer */
+            _TCHAR* cwd = _tgetcwd( NULL, 0 );
+            if (cwd != NULL) {
+                cmdPath = malloc( (_tcslen(cwd) + EXTRA + _tcslen( command ) + 2) * sizeof (_TCHAR));
+                _tcscpy(cmdPath, cwd);
+                free(cwd);
+#else
             length = MAX_PATH_LENGTH + EXTRA + _tcslen( command );
             cmdPath = malloc( length * sizeof (_TCHAR));
             _tgetcwd( cmdPath, length );
-            length = _tcslen(cmdPath);
-            if (!IS_DIR_SEPARATOR(cmdPath[ length - 1 ]))
-            {
-                cmdPath[ length ] = dirSeparator;
-                cmdPath[ length+1 ] = _T_ECLIPSE('\0');
+#endif
+                length = _tcslen(cmdPath);
+                if (!IS_DIR_SEPARATOR(cmdPath[ length - 1 ]))
+                {
+                    cmdPath[ length ] = dirSeparator;
+                    cmdPath[ length+1 ] = _T_ECLIPSE('\0');
+                }
+                _tcscat( cmdPath, command );
+#ifdef _WIN32
             }
-            _tcscat( cmdPath, command );
+#endif
         }
 
         /* else the command must be in the PATH somewhere */
@@ -185,12 +197,17 @@ _TCHAR* findSymlinkCommand( _TCHAR* command, int resolve )
             /* on windows, prepend the current directory */
             if (path == NULL)
             	path = _T_ECLIPSE("");
-            ch = malloc((_tcslen(path) + MAX_PATH_LENGTH + 2) * sizeof(_TCHAR));
-            _tgetcwd( ch, MAX_PATH_LENGTH );
-            length = _tcslen(ch);
-            ch[length] = pathSeparator;
-            _tcscpy(&ch[length + 1], path);
-            path = ch;
+            /* On Windows, passing NULL and 0 makes _getcwd allocate the buffer */
+            _TCHAR* cwd = _tgetcwd( NULL, 0 );
+            if (cwd != NULL) {
+                ch = malloc((_tcslen(path) + _tcslen(cwd) + 2) * sizeof(_TCHAR));
+                _tcscpy(ch, cwd);
+                length = _tcslen(ch);
+                ch[length] = pathSeparator;
+                _tcscpy(&ch[length + 1], path);
+                path = ch;
+                free(cwd);
+            }
 #endif
             if (!path)
             {
@@ -238,7 +255,26 @@ _TCHAR* findSymlinkCommand( _TCHAR* command, int resolve )
 	                if (_tcslen(cmdPath) == 0 || /*an empty path entry is treated as '.' */
 	                	(cmdPath[0] == _T_ECLIPSE('.') && (_tcslen(cmdPath) == 1 || (_tcslen(cmdPath) == 2 && IS_DIR_SEPARATOR(cmdPath[1])))))
 	                {
-	                	_tgetcwd( cmdPath, MAX_PATH_LENGTH );
+#ifdef _WIN32
+	                	/* On Windows, use auto-allocation for getcwd */
+	                	_TCHAR* cwd = _tgetcwd( NULL, 0 );
+	                	if (cwd != NULL) {
+	                		/* Make sure cmdPath buffer is big enough */
+	                		size_t cwdLen = _tcslen(cwd);
+	                		size_t commandLen = _tcslen(command);
+	                		size_t requiredSize = cwdLen + commandLen + 3; /* +3 for separator, null, and safety */
+	                		if (requiredSize > length) {
+	                			/* Need to reallocate cmdPath */
+	                			free(cmdPath);
+	                			cmdPath = malloc(requiredSize * sizeof(_TCHAR));
+	                			length = requiredSize;
+	                		}
+	                		_tcscpy(cmdPath, cwd);
+	                		free(cwd);
+	                	}
+#else
+	                	_tgetcwd( cmdPath, length );
+#endif
 	                }
 	                length = _tcslen(cmdPath);
 	                if (!IS_DIR_SEPARATOR(cmdPath[ length - 1 ]))
