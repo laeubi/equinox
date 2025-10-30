@@ -93,10 +93,18 @@ openFile
 
 **Issue**: Windows path length limitations (260 characters) can cause issues with deeply nested workspaces.
 
-**Workaround**:
+**Status**: Fixed in Eclipse launcher 3.x and later. The launcher now supports Windows long paths (up to 32,767 characters) when:
+1. Running on Windows 10 version 1607 or later
+2. Long path support is enabled in Windows (Group Policy or Registry)
+3. The application manifest declares `longPathAware` (included by default)
+
+**Note**: Even with launcher support, you must enable long paths in Windows:
+- **Via Group Policy**: Computer Configuration > Administrative Templates > System > Filesystem > Enable Win32 long paths
+- **Via Registry**: Set `HKLM\SYSTEM\CurrentControlSet\Control\FileSystem\LongPathsEnabled` to 1
+
+**Legacy Workaround** (for older Windows versions):
 - Keep Eclipse installation path short
 - Use short workspace paths
-- Enable long path support in Windows 10/11 (Group Policy or Registry)
 
 #### Windows Defender
 
