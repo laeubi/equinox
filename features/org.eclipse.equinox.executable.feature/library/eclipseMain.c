@@ -257,15 +257,16 @@ static _TCHAR* findProgram(_TCHAR* argv[]) {
     {
 #ifdef _WIN32
     	/* GetModuleFileName with extended-length path support.
-    	 * Start with a reasonable buffer size and grow if needed. */
+    	 * Start with a reasonable buffer size and grow if needed.
+    	 * GetModuleFileName returns the number of characters written (excluding null).
+    	 * If the buffer is too small, it returns the buffer size (nSize).
+    	 * We keep doubling the buffer until we get result < size. */
     	DWORD size = MAX_PATH_LENGTH + 1;
     	DWORD result;
     	program = malloc( size * sizeof(_TCHAR) );
     	result = GetModuleFileName( NULL, program, size );
-    	/* If buffer was too small, the result equals the buffer size.
-    	 * Grow the buffer and try again. We loop until result < size to ensure
-    	 * we have the complete path. */
-    	while (result >= size) {
+    	/* Loop while buffer might be truncated (result == size means truncated) */
+    	while (result == size) {
     		free(program);
     		size *= 2;
     		program = malloc( size * sizeof(_TCHAR) );
