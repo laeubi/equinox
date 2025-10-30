@@ -262,10 +262,10 @@ static _TCHAR* findProgram(_TCHAR* argv[]) {
     	DWORD result;
     	program = malloc( size * sizeof(_TCHAR) );
     	result = GetModuleFileName( NULL, program, size );
-    	/* If buffer was too small, GetModuleFileName returns the buffer size
-    	 * and GetLastError returns ERROR_INSUFFICIENT_BUFFER on newer Windows versions.
-    	 * Grow the buffer and try again. */
-    	while (result == size || (result == size && GetLastError() == ERROR_INSUFFICIENT_BUFFER)) {
+    	/* If buffer was too small, the result equals the buffer size.
+    	 * Grow the buffer and try again. We loop until result < size to ensure
+    	 * we have the complete path. */
+    	while (result >= size) {
     		free(program);
     		size *= 2;
     		program = malloc( size * sizeof(_TCHAR) );
