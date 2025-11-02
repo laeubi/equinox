@@ -409,43 +409,6 @@ public final class AdapterManager implements IAdapterManager {
 	}
 
 	/**
-	 * Returns all adaptable type names that have factories capable of producing
-	 * the given adapter type. This is used for finding conversion paths.
-	 * 
-	 * @param adapterTypeName the adapter type to search for
-	 * @return array of adaptable type names that can produce the adapter type
-	 */
-	public String[] getAdaptableTypes(String adapterTypeName) {
-		Set<String> result = new HashSet<>();
-		Map<String, List<IAdapterFactory>> allFactories = getFactories();
-		
-		for (Map.Entry<String, List<IAdapterFactory>> entry : allFactories.entrySet()) {
-			String adaptableType = entry.getKey();
-			for (IAdapterFactory factory : entry.getValue()) {
-				if (factory instanceof IAdapterFactoryExt) {
-					String[] adapters = ((IAdapterFactoryExt) factory).getAdapterNames();
-					for (String adapter : adapters) {
-						if (adapter.equals(adapterTypeName)) {
-							result.add(adaptableType);
-							break;
-						}
-					}
-				} else {
-					Class<?>[] adapters = factory.getAdapterList();
-					for (Class<?> adapter : adapters) {
-						if (adapter.getName().equals(adapterTypeName)) {
-							result.add(adaptableType);
-							break;
-						}
-					}
-				}
-			}
-		}
-		
-		return result.toArray(new String[0]);
-	}
-
-	/**
 	 * Try to load the given factory according to the force parameter
 	 *
 	 * @param factory the factory to load

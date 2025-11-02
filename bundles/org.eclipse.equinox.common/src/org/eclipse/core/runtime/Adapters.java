@@ -193,19 +193,21 @@ public class Adapters {
 	/**
 	 * Finds conversion paths from source class to target class using breadth-first
 	 * search. Returns paths sorted by length (shortest first).
+	 * Each path contains intermediate type names (not including source or target).
 	 */
 	private static List<List<String>> findConversionPaths(Class<?> sourceClass, Class<?> targetClass) {
 		List<List<String>> allPaths = new ArrayList<>();
 		IAdapterManager manager = AdapterManager.getDefault();
 		String targetName = targetClass.getName();
 
-		// BFS to find paths
+		// BFS to find paths - search from source to target
 		Queue<PathNode> queue = new LinkedList<>();
 		Set<String> visited = new HashSet<>();
 		
-		// Start from types that can produce the target
-		queue.add(new PathNode(targetName, new ArrayList<>()));
-		visited.add(targetName);
+		// Start from the source type
+		String sourceName = sourceClass.getName();
+		queue.add(new PathNode(sourceName, new ArrayList<>()));
+		visited.add(sourceName);
 
 		while (!queue.isEmpty() && allPaths.isEmpty()) {
 			int levelSize = queue.size();
@@ -214,23 +216,25 @@ public class Adapters {
 			for (int i = 0; i < levelSize; i++) {
 				PathNode current = queue.poll();
 				
-				// Check if we can adapt from source to this type
-				if (canAdaptDirectly(sourceClass, current.typeName, manager)) {
-					// Found a path!
-					List<String> path = new ArrayList<>(current.path);
-					path.add(current.typeName);
-					currentLevelPaths.add(path);
+				// Get all types we can adapt to from current type
+				Class<?> currentClass;
+				try {
+					currentClass = Class.forName(current.typeName);
+				} catch (ClassNotFoundException e) {
 					continue;
 				}
-
-				// Find types that can adapt to current type
-				String[] adaptableTypes = findTypesAdaptingTo(current.typeName, manager);
-				for (String adaptableType : adaptableTypes) {
-					if (!visited.contains(adaptableType)) {
-						visited.add(adaptableType);
+				
+				String[] adapterTypes = manager.computeAdapterTypes(currentClass);
+				for (String adapterType : adapterTypes) {
+					if (adapterType.equals(targetName)) {
+						// Found a path to target!
+						currentLevelPaths.add(new ArrayList<>(current.path));
+					} else if (!visited.contains(adapterType)) {
+						// Add to queue for further exploration
+						visited.add(adapterType);
 						List<String> newPath = new ArrayList<>(current.path);
-						newPath.add(current.typeName);
-						queue.add(new PathNode(adaptableType, newPath));
+						newPath.add(adapterType);
+						queue.add(new PathNode(adapterType, newPath));
 					}
 				}
 			}
@@ -241,36 +245,7 @@ public class Adapters {
 			}
 		}
 
-		// Reverse paths since we searched backwards
-		for (List<String> path : allPaths) {
-			Collections.reverse(path);
-		}
-
 		return allPaths;
-	}
-
-	/**
-	 * Checks if sourceClass can be directly adapted to targetTypeName.
-	 */
-	private static boolean canAdaptDirectly(Class<?> sourceClass, String targetTypeName, IAdapterManager manager) {
-		String[] adapterTypes = manager.computeAdapterTypes(sourceClass);
-		for (String type : adapterTypes) {
-			if (type.equals(targetTypeName)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Finds all types that can be adapted to the target type by checking all
-	 * registered factories.
-	 */
-	private static String[] findTypesAdaptingTo(String targetTypeName, IAdapterManager manager) {
-		if (manager instanceof AdapterManager) {
-			return ((AdapterManager) manager).getAdaptableTypes(targetTypeName);
-		}
-		return new String[0];
 	}
 
 	/**
@@ -280,6 +255,7 @@ public class Adapters {
 	private static <T> T tryConversionPath(Object sourceObject, Class<T> targetClass, List<String> path) {
 		Object current = sourceObject;
 		
+		// Apply each intermediate conversion
 		for (String typeName : path) {
 			try {
 				Class<?> intermediateClass = Class.forName(typeName);
@@ -292,11 +268,9 @@ public class Adapters {
 			}
 		}
 		
-		if (targetClass.isInstance(current)) {
-			return (T) current;
-		}
-		
-		return null;
+		// Final conversion to target type
+		T result = adapt(current, targetClass, true);
+		return result;
 	}
 
 	/**
