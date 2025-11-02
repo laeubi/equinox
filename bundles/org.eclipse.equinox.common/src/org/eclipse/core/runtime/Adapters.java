@@ -28,6 +28,11 @@ import org.eclipse.osgi.util.NLS;
  */
 public class Adapters {
 	/**
+	 * Maximum depth for conversion path search to prevent excessive computation.
+	 */
+	private static final int MAX_CONVERSION_DEPTH = 10;
+
+	/**
 	 * If it is possible to adapt the given object to the given type, this returns
 	 * the adapter. Performs the following checks:
 	 *
@@ -209,11 +214,9 @@ public class Adapters {
 		queue.add(new PathNode(sourceName, new ArrayList<>()));
 		visited.add(sourceName);
 
-		// Limit search depth to prevent excessive computation
-		final int MAX_DEPTH = 10;
 		int currentDepth = 0;
 
-		while (!queue.isEmpty() && allPaths.isEmpty() && currentDepth < MAX_DEPTH) {
+		while (!queue.isEmpty() && allPaths.isEmpty() && currentDepth < MAX_CONVERSION_DEPTH) {
 			int levelSize = queue.size();
 			List<List<String>> currentLevelPaths = new ArrayList<>();
 
@@ -225,6 +228,9 @@ public class Adapters {
 				try {
 					currentClass = Class.forName(current.typeName);
 				} catch (ClassNotFoundException e) {
+					// Log at debug level to aid troubleshooting
+					RuntimeLog.log(Status.info("Could not load class " + current.typeName //$NON-NLS-1$
+							+ " during conversion path search")); //$NON-NLS-1$
 					continue;
 				}
 				
@@ -270,6 +276,9 @@ public class Adapters {
 					return null;
 				}
 			} catch (ClassNotFoundException e) {
+				// Log at debug level to aid troubleshooting
+				RuntimeLog.log(Status.info("Could not load class " + typeName //$NON-NLS-1$
+						+ " during conversion path execution")); //$NON-NLS-1$
 				return null;
 			}
 		}

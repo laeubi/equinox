@@ -1,6 +1,5 @@
 package org.eclipse.equinox.common.tests.adaptable;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -17,16 +16,26 @@ import org.junit.Test;
 public class AdaptersTest {
 
 	private AdapterManager manager;
+	private java.util.List<IAdapterFactory> registeredFactories;
 
 	@Before
 	public void setUp() {
 		manager = AdapterManager.getDefault();
+		registeredFactories = new java.util.ArrayList<>();
 	}
 
 	@After
 	public void tearDown() {
-		// Clean up any registered factories
-		manager.unregisterAllAdapters();
+		// Clean up only the factories registered in this test
+		for (IAdapterFactory factory : registeredFactories) {
+			manager.unregisterAdapters(factory);
+		}
+		registeredFactories.clear();
+	}
+
+	private void registerFactory(IAdapterFactory factory, Class<?> adaptable) {
+		manager.registerAdapters(factory, adaptable);
+		registeredFactories.add(factory);
 	}
 
 	@Test
@@ -82,7 +91,7 @@ public class AdaptersTest {
 			}
 		};
 
-		manager.registerAdapters(factory, TypeA.class);
+		registerFactory(factory, TypeA.class);
 
 		TypeA source = new TypeA();
 		TypeB result = Adapters.convert(source, TypeB.class);
@@ -122,8 +131,8 @@ public class AdaptersTest {
 			}
 		};
 
-		manager.registerAdapters(factoryAB, TypeA.class);
-		manager.registerAdapters(factoryBC, TypeB.class);
+		registerFactory(factoryAB, TypeA.class);
+		registerFactory(factoryBC, TypeB.class);
 
 		TypeA source = new TypeA();
 		TypeC result = Adapters.convert(source, TypeC.class);
@@ -178,9 +187,9 @@ public class AdaptersTest {
 			}
 		};
 
-		manager.registerAdapters(factoryAB, TypeA.class);
-		manager.registerAdapters(factoryBC, TypeB.class);
-		manager.registerAdapters(factoryCD, TypeC.class);
+		registerFactory(factoryAB, TypeA.class);
+		registerFactory(factoryBC, TypeB.class);
+		registerFactory(factoryCD, TypeC.class);
 
 		TypeA source = new TypeA();
 		TypeD result = Adapters.convert(source, TypeD.class);
@@ -205,7 +214,7 @@ public class AdaptersTest {
 			}
 		};
 
-		manager.registerAdapters(factory, TypeA.class);
+		registerFactory(factory, TypeA.class);
 
 		TypeA source = new TypeA();
 		TypeD result = Adapters.convert(source, TypeD.class);
@@ -227,7 +236,7 @@ public class AdaptersTest {
 			}
 		};
 
-		manager.registerAdapters(factory, TypeA.class);
+		registerFactory(factory, TypeA.class);
 
 		TypeA source = new TypeA();
 		TypeB result = Adapters.convert(source, TypeB.class);
