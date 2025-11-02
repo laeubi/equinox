@@ -1,26 +1,33 @@
-/*******************************************************************************
- * Copyright (c) 2021 Christoph Läubrich and others.
- *
- * This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License 2.0
- * which accompanies this distribution, and is available at
- * https://www.eclipse.org/legal/epl-2.0/
- *
- * SPDX-License-Identifier: EPL-2.0
- *
- * Contributors:
- *     Christoph Läubrich - Initial API and implementation
- *******************************************************************************/
 package org.eclipse.equinox.common.tests.adaptable;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Optional;
 
+import org.eclipse.core.internal.runtime.AdapterManager;
 import org.eclipse.core.runtime.Adapters;
+import org.eclipse.core.runtime.IAdapterFactory;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 public class AdaptersTest {
+
+	private AdapterManager manager;
+
+	@Before
+	public void setUp() {
+		manager = AdapterManager.getDefault();
+	}
+
+	@After
+	public void tearDown() {
+		// Clean up any registered factories
+		manager.unregisterAllAdapters();
+	}
 
 	@Test
 	public void testOptionalObjectIsNull() {
@@ -45,17 +52,207 @@ public class AdaptersTest {
 		assertTrue(optional.isPresent());
 	}
 
-	private static final class ThisWillNotAdapt {
+	@Test
+	public void testConvertWithNullSource() {
+		String result = Adapters.convert(null, String.class);
+		assertNull("Convert should return null for null source", result);
+	}
 
+	@Test
+	public void testConvertWithNullTarget() {
+		Object result = Adapters.convert(new Object(), null);
+		assertNull("Convert should return null for null target", result);
+	}
+
+	@Test
+	public void testConvertDirectAdaptation() {
+		// Register a simple adapter factory
+		IAdapterFactory factory = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeA && adapterType == TypeB.class) {
+					return adapterType.cast(new TypeB());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeB.class };
+			}
+		};
+
+		manager.registerAdapters(factory, TypeA.class);
+
+		TypeA source = new TypeA();
+		TypeB result = Adapters.convert(source, TypeB.class);
+		assertNotNull("Direct conversion should succeed", result);
+	}
+
+	@Test
+	public void testConvertSingleHopConversion() {
+		// Register factories for A -> B and B -> C
+		IAdapterFactory factoryAB = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeA && adapterType == TypeB.class) {
+					return adapterType.cast(new TypeB());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeB.class };
+			}
+		};
+
+		IAdapterFactory factoryBC = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeB && adapterType == TypeC.class) {
+					return adapterType.cast(new TypeC());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeC.class };
+			}
+		};
+
+		manager.registerAdapters(factoryAB, TypeA.class);
+		manager.registerAdapters(factoryBC, TypeB.class);
+
+		TypeA source = new TypeA();
+		TypeC result = Adapters.convert(source, TypeC.class);
+		assertNotNull("Single-hop conversion (A->B->C) should succeed", result);
+	}
+
+	@Test
+	public void testConvertMultiHopConversion() {
+		// Register factories for A -> B, B -> C, and C -> D
+		IAdapterFactory factoryAB = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeA && adapterType == TypeB.class) {
+					return adapterType.cast(new TypeB());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeB.class };
+			}
+		};
+
+		IAdapterFactory factoryBC = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeB && adapterType == TypeC.class) {
+					return adapterType.cast(new TypeC());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeC.class };
+			}
+		};
+
+		IAdapterFactory factoryCD = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeC && adapterType == TypeD.class) {
+					return adapterType.cast(new TypeD());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeD.class };
+			}
+		};
+
+		manager.registerAdapters(factoryAB, TypeA.class);
+		manager.registerAdapters(factoryBC, TypeB.class);
+		manager.registerAdapters(factoryCD, TypeC.class);
+
+		TypeA source = new TypeA();
+		TypeD result = Adapters.convert(source, TypeD.class);
+		assertNotNull("Multi-hop conversion (A->B->C->D) should succeed", result);
+	}
+
+	@Test
+	public void testConvertNoPathExists() {
+		// Register only A -> B factory
+		IAdapterFactory factory = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				if (adaptableObject instanceof TypeA && adapterType == TypeB.class) {
+					return adapterType.cast(new TypeB());
+				}
+				return null;
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeB.class };
+			}
+		};
+
+		manager.registerAdapters(factory, TypeA.class);
+
+		TypeA source = new TypeA();
+		TypeD result = Adapters.convert(source, TypeD.class);
+		assertNull("Conversion should fail when no path exists", result);
+	}
+
+	@Test
+	public void testConvertFactoryReturnsNull() {
+		// Register a factory that returns null
+		IAdapterFactory factory = new IAdapterFactory() {
+			@Override
+			public <T> T getAdapter(Object adaptableObject, Class<T> adapterType) {
+				return null; // Always returns null
+			}
+
+			@Override
+			public Class<?>[] getAdapterList() {
+				return new Class[] { TypeB.class };
+			}
+		};
+
+		manager.registerAdapters(factory, TypeA.class);
+
+		TypeA source = new TypeA();
+		TypeB result = Adapters.convert(source, TypeB.class);
+		assertNull("Conversion should fail when factory returns null", result);
+	}
+
+	// Test helper classes
+	private static final class ThisWillNotAdapt {
 	}
 
 	private static final class ThisWillAdaptToRunnable implements Runnable {
-
 		@Override
 		public void run() {
-
 		}
-
 	}
 
+	private static class TypeA {
+	}
+
+	private static class TypeB {
+	}
+
+	private static class TypeC {
+	}
+
+	private static class TypeD {
+	}
 }

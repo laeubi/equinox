@@ -15,8 +15,7 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.osgi.util.NLS;
 
@@ -138,6 +137,178 @@ public class Adapters {
 					NLS.bind(CommonMessages.adapters_internal_error_of, sourceObject.getClass().getName(), adapter.getClass().getName(), e.getLocalizedMessage()),
 					e));
 			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Attempts to convert the given object to the given type by finding and
+	 * executing an adaptation path through intermediate types. This method performs
+	 * multi-hop conversions when a direct adaptation is not available.
+	 * <p>
+	 * The conversion process:
+	 * <ol>
+	 * <li>First tries direct adaptation from sourceObject to adapter type (shortcut)</li>
+	 * <li>If direct adaptation fails, searches for a conversion path through
+	 * intermediate types using a breadth-first search to find the shortest path</li>
+	 * <li>Executes the found conversion path and returns the first successful
+	 * non-null result</li>
+	 * </ol>
+	 * <p>
+	 * Note that this method may activate plug-ins if necessary to provide the
+	 * requested adapters.
+	 * </p>
+	 *
+	 * @param <T>          class type to convert to
+	 * @param sourceObject object to convert, can be null
+	 * @param adapter      type to convert to
+	 * @return a representation of sourceObject that is assignable to the adapter
+	 *         type, or null if no conversion path exists or all paths fail
+	 * @since 3.17
+	 */
+	public static <T> T convert(Object sourceObject, Class<T> adapter) {
+		if (sourceObject == null || adapter == null) {
+			return null;
+		}
+
+		// Shortcut: try direct adaptation first
+		T directResult = adapt(sourceObject, adapter, true);
+		if (directResult != null) {
+			return directResult;
+		}
+
+		// Find conversion paths using BFS
+		List<List<String>> paths = findConversionPaths(sourceObject.getClass(), adapter);
+		
+		// Try each path in order (shortest first due to BFS)
+		for (List<String> path : paths) {
+			T result = tryConversionPath(sourceObject, adapter, path);
+			if (result != null) {
+				return result;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Finds conversion paths from source class to target class using breadth-first
+	 * search. Returns paths sorted by length (shortest first).
+	 */
+	private static List<List<String>> findConversionPaths(Class<?> sourceClass, Class<?> targetClass) {
+		List<List<String>> allPaths = new ArrayList<>();
+		IAdapterManager manager = AdapterManager.getDefault();
+		String targetName = targetClass.getName();
+
+		// BFS to find paths
+		Queue<PathNode> queue = new LinkedList<>();
+		Set<String> visited = new HashSet<>();
+		
+		// Start from types that can produce the target
+		queue.add(new PathNode(targetName, new ArrayList<>()));
+		visited.add(targetName);
+
+		while (!queue.isEmpty() && allPaths.isEmpty()) {
+			int levelSize = queue.size();
+			List<List<String>> currentLevelPaths = new ArrayList<>();
+
+			for (int i = 0; i < levelSize; i++) {
+				PathNode current = queue.poll();
+				
+				// Check if we can adapt from source to this type
+				if (canAdaptDirectly(sourceClass, current.typeName, manager)) {
+					// Found a path!
+					List<String> path = new ArrayList<>(current.path);
+					path.add(current.typeName);
+					currentLevelPaths.add(path);
+					continue;
+				}
+
+				// Find types that can adapt to current type
+				String[] adaptableTypes = findTypesAdaptingTo(current.typeName, manager);
+				for (String adaptableType : adaptableTypes) {
+					if (!visited.contains(adaptableType)) {
+						visited.add(adaptableType);
+						List<String> newPath = new ArrayList<>(current.path);
+						newPath.add(current.typeName);
+						queue.add(new PathNode(adaptableType, newPath));
+					}
+				}
+			}
+
+			// If we found paths at this level, use them (shortest paths)
+			if (!currentLevelPaths.isEmpty()) {
+				allPaths.addAll(currentLevelPaths);
+			}
+		}
+
+		// Reverse paths since we searched backwards
+		for (List<String> path : allPaths) {
+			Collections.reverse(path);
+		}
+
+		return allPaths;
+	}
+
+	/**
+	 * Checks if sourceClass can be directly adapted to targetTypeName.
+	 */
+	private static boolean canAdaptDirectly(Class<?> sourceClass, String targetTypeName, IAdapterManager manager) {
+		String[] adapterTypes = manager.computeAdapterTypes(sourceClass);
+		for (String type : adapterTypes) {
+			if (type.equals(targetTypeName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Finds all types that can be adapted to the target type by checking all
+	 * registered factories.
+	 */
+	private static String[] findTypesAdaptingTo(String targetTypeName, IAdapterManager manager) {
+		if (manager instanceof AdapterManager) {
+			return ((AdapterManager) manager).getAdaptableTypes(targetTypeName);
+		}
+		return new String[0];
+	}
+
+	/**
+	 * Tries to execute a conversion path.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T> T tryConversionPath(Object sourceObject, Class<T> targetClass, List<String> path) {
+		Object current = sourceObject;
+		
+		for (String typeName : path) {
+			try {
+				Class<?> intermediateClass = Class.forName(typeName);
+				current = adapt(current, intermediateClass, true);
+				if (current == null) {
+					return null;
+				}
+			} catch (ClassNotFoundException e) {
+				return null;
+			}
+		}
+		
+		if (targetClass.isInstance(current)) {
+			return (T) current;
+		}
+		
+		return null;
+	}
+
+	/**
+	 * Helper class for BFS path finding.
+	 */
+	private static class PathNode {
+		final String typeName;
+		final List<String> path;
+
+		PathNode(String typeName, List<String> path) {
+			this.typeName = typeName;
+			this.path = path;
 		}
 	}
 
