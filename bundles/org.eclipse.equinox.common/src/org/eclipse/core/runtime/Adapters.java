@@ -15,7 +15,14 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.osgi.util.NLS;
 
@@ -230,7 +237,7 @@ public class Adapters {
 				} catch (ClassNotFoundException e) {
 					// Log at debug level to aid troubleshooting
 					RuntimeLog.log(Status.info("Could not load class " + current.typeName //$NON-NLS-1$
-							+ " during conversion path search")); //$NON-NLS-1$
+							+ " during conversion path search: " + e.getMessage())); //$NON-NLS-1$
 					continue;
 				}
 				
@@ -278,7 +285,7 @@ public class Adapters {
 			} catch (ClassNotFoundException e) {
 				// Log at debug level to aid troubleshooting
 				RuntimeLog.log(Status.info("Could not load class " + typeName //$NON-NLS-1$
-						+ " during conversion path execution")); //$NON-NLS-1$
+						+ " during conversion path execution: " + e.getMessage())); //$NON-NLS-1$
 				return null;
 			}
 		}
