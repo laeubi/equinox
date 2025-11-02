@@ -209,7 +209,11 @@ public class Adapters {
 		queue.add(new PathNode(sourceName, new ArrayList<>()));
 		visited.add(sourceName);
 
-		while (!queue.isEmpty() && allPaths.isEmpty()) {
+		// Limit search depth to prevent excessive computation
+		final int MAX_DEPTH = 10;
+		int currentDepth = 0;
+
+		while (!queue.isEmpty() && allPaths.isEmpty() && currentDepth < MAX_DEPTH) {
 			int levelSize = queue.size();
 			List<List<String>> currentLevelPaths = new ArrayList<>();
 
@@ -243,6 +247,8 @@ public class Adapters {
 			if (!currentLevelPaths.isEmpty()) {
 				allPaths.addAll(currentLevelPaths);
 			}
+
+			currentDepth++;
 		}
 
 		return allPaths;
