@@ -18,14 +18,14 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.*;
 import org.eclipse.equinox.region.*;
 import org.eclipse.equinox.region.internal.tests.RegionReflectionUtils;
 import org.eclipse.equinox.region.internal.tests.MockBundleBuilder;
-import org.junit.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.osgi.framework.*;
 import org.osgi.framework.hooks.bundle.EventHook;
 
