@@ -339,20 +339,21 @@ public class RegionServiceFindHookTests {
 		Bundle bundle = MockBundleBuilder.createMockBundle(this.bundleId++, bundleSymbolicName, BUNDLE_VERSION,
 				"loc:" + bundleSymbolicName);
 		this.bundles.put(bundleSymbolicName, bundle);
-		createServiceReference(stubBundle, bundleSymbolicName);
+		createServiceReference(bundle, bundleSymbolicName);
 		return bundle;
 	}
 
-	private StubServiceReference<Object> createServiceReference(Bundle stubBundle, String referenceName) {
-		StubServiceRegistration<Object> stubServiceRegistration = new StubServiceRegistration<>(
-				(StubBundleContext) stubBundle.getBundleContext(), referenceName);
-		StubServiceReference<Object> stubServiceReference = new StubServiceReference<>(stubServiceRegistration);
+	private ServiceReference<Object> createServiceReference(Bundle bundle, String referenceName) {
+		ServiceReference<Object> stubServiceReference = mock(ServiceReference.class);
+		when(stubServiceReference.getProperty(Constants.OBJECTCLASS)).thenReturn(new String[] { referenceName });
+		when(stubServiceReference.getBundle()).thenReturn(bundle);
 		this.serviceReferences.put(referenceName, stubServiceReference);
 
-		StubServiceRegistration<Object> dupServiceRegistration = new StubServiceRegistration<>(
-				(StubBundleContext) stubBundle.getBundleContext(), DUPLICATE + stubBundle.getBundleId());
-		StubServiceReference<Object> dupServiceReference = new StubServiceReference<>(dupServiceRegistration);
-		this.serviceReferences.put(DUPLICATE + stubBundle.getBundleId(), dupServiceReference);
+		ServiceReference<Object> dupServiceReference = mock(ServiceReference.class);
+		String dupName = DUPLICATE + bundle.getBundleId();
+		when(dupServiceReference.getProperty(Constants.OBJECTCLASS)).thenReturn(new String[] { dupName });
+		when(dupServiceReference.getBundle()).thenReturn(bundle);
+		this.serviceReferences.put(dupName, dupServiceReference);
 		return stubServiceReference;
 	}
 
