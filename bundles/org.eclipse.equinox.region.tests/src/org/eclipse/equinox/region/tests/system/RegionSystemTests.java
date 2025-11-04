@@ -88,7 +88,7 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		bundleInstaller.resolveBundles(bundles.toArray(new Bundle[bundles.size()]));
 		for (Bundle bundle : bundles) {
-			assertEquals("Bundle did not resolve: " + bundle.getSymbolicName(), Bundle.RESOLVED, bundle.getState());
+			assertEquals(Bundle.RESOLVED, bundle.getState(), "Bundle did not resolve: " + bundle.getSymbolicName());
 			bundle.start();
 		}
 		BundleContext context = getContext();
@@ -127,15 +127,15 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 		}
 
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
-		assertEquals(PP1, Bundle.RESOLVED, bundles.get(PP1).getState());
-		assertEquals(SP1, Bundle.INSTALLED, bundles.get(SP1).getState());
-		assertEquals(CP1, Bundle.RESOLVED, bundles.get(CP1).getState());
-		assertEquals(PP2, Bundle.INSTALLED, bundles.get(PP2).getState());
-		assertEquals(SP2, Bundle.INSTALLED, bundles.get(SP2).getState());
-		assertEquals(CP2, Bundle.INSTALLED, bundles.get(CP2).getState());
-		assertEquals(BC1, Bundle.INSTALLED, bundles.get(BC1).getState());
-		assertEquals(SC1, Bundle.INSTALLED, bundles.get(SC1).getState());
-		assertEquals(CC1, Bundle.INSTALLED, bundles.get(CC1).getState());
+		assertEquals(Bundle.RESOLVED, bundles.get(PP1).getState(), PP1);
+		assertEquals(Bundle.INSTALLED, bundles.get(SP1).getState(), SP1);
+		assertEquals(Bundle.RESOLVED, bundles.get(CP1).getState(), CP1);
+		assertEquals(Bundle.INSTALLED, bundles.get(PP2).getState(), PP2);
+		assertEquals(Bundle.INSTALLED, bundles.get(SP2).getState(), SP2);
+		assertEquals(Bundle.INSTALLED, bundles.get(CP2).getState(), CP2);
+		assertEquals(Bundle.INSTALLED, bundles.get(BC1).getState(), BC1);
+		assertEquals(Bundle.INSTALLED, bundles.get(SC1).getState(), SC1);
+		assertEquals(Bundle.INSTALLED, bundles.get(CC1).getState(), CC1);
 
 		// now make the necessary connections
 		// SP1
@@ -195,7 +195,7 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
 		for (Bundle bundle : bundles.values()) {
-			assertEquals("Bundle did not resolve: " + bundle.getSymbolicName(), Bundle.RESOLVED, bundle.getState());
+			assertEquals(Bundle.RESOLVED, bundle.getState(), "Bundle did not resolve: " + bundle.getSymbolicName());
 			bundle.start();
 		}
 		BundleContext context = getContext();
@@ -396,7 +396,7 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
 		for (Bundle bundle : bundles.values()) {
-			assertEquals("Bundle did not resolve: " + bundle.getSymbolicName(), Bundle.RESOLVED, bundle.getState());
+			assertEquals(Bundle.RESOLVED, bundle.getState(), "Bundle did not resolve: " + bundle.getSymbolicName());
 			bundle.start();
 		}
 		BundleContext context = getContext();
@@ -479,7 +479,8 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 			disableHook = null;
 
 			assertFalse(bundleInstaller.resolveBundles(new Bundle[] { singleton1, singleton2 }));
-			assertTrue("One and only singleton bundle should be resolved",;
+			assertTrue((singleton1.getState() == Bundle.RESOLVED) ^ (singleton2.getState() == Bundle.RESOLVED),
+					"One and only singleton bundle should be resolved");
 
 			singleton2.uninstall();
 			disableHook = disableAllResolves();
@@ -539,16 +540,16 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		Set<ObjectInstance> pp1Query = server.queryMBeans(null,
 				new ObjectName(REGION_DOMAIN_PROP + ":type=Region,name=" + PP1 + ",*"));
-		assertEquals("Expected only one instance of: " + PP1, 1, pp1Query.size());
+		assertEquals(1, pp1Query.size(), "Expected only one instance of: " + PP1);
 		Set<ObjectInstance> sp1Query = server.queryMBeans(null,
 				new ObjectName(REGION_DOMAIN_PROP + ":type=Region,name=" + SP1 + ",*"));
-		assertEquals("Expected only one instance of: " + SP1, 1, sp1Query.size());
+		assertEquals(1, sp1Query.size(), "Expected only one instance of: " + SP1);
 		ObjectName pp1Name = (ObjectName) server.invoke(digraphs.iterator().next().getObjectName(), "getRegion",
 				new Object[] { PP1 }, new String[] { String.class.getName() });
-		assertEquals(PP1 + " regions not equal.", pp1Query.iterator().next().getObjectName(), pp1Name);
+		assertEquals(pp1Query.iterator().next().getObjectName(), pp1Name, PP1 + " regions not equal.");
 		ObjectName sp1Name = (ObjectName) server.invoke(digraphs.iterator().next().getObjectName(), "getRegion",
 				new Object[] { SP1 }, new String[] { String.class.getName() });
-		assertEquals(SP1 + " regions not equal.", sp1Query.iterator().next().getObjectName(), sp1Name);
+		assertEquals(sp1Query.iterator().next().getObjectName(), sp1Name, SP1 + " regions not equal.");
 
 		// test non existing region
 		ObjectName shouldNotExistName = (ObjectName) server.invoke(digraphs.iterator().next().getObjectName(),
@@ -594,7 +595,8 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 		}
 
 		assertEquals(numRegions * ALL.size(), bundles.size(), "Wrong number of bundles installed");
-		assertTrue("Could not resolve bundles.",;
+		assertTrue(bundleInstaller.resolveBundles(bundles.toArray(new Bundle[bundles.size()])),
+				"Could not resolve bundles.");
 
 		// test install of duplicates
 		for (int i = 0; i < numRegions; i++) {
@@ -968,8 +970,8 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 		}
 
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
-		assertEquals(PP1, Bundle.RESOLVED, bundles.get(PP1).getState());
-		assertEquals(SP1, Bundle.INSTALLED, bundles.get(SP1).getState());
+		assertEquals(Bundle.RESOLVED, bundles.get(PP1).getState(), PP1);
+		assertEquals(Bundle.INSTALLED, bundles.get(SP1).getState(), SP1);
 
 		// now make a connection that does not let the necessary package through
 		RegionFilter badRegionFilter = digraph.createRegionFilterBuilder()
@@ -981,14 +983,15 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		// use replace and verify a new edge is added if the connection did not exist
 		// already
-		assertNull("Found existing connection.",;
+		assertNull(digraph.replaceConnection(digraph.getRegion(SP1), badRegionFilter, digraph.getRegion(PP1)),
+				"Found existing connection.");
 		edges = digraph.getRegion(SP1).getEdges();
 		assertEquals(2, edges.size(), "Wrong number of edges.");
 
 		// still should not resolve
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
-		assertEquals(PP1, Bundle.RESOLVED, bundles.get(PP1).getState());
-		assertEquals(SP1, Bundle.INSTALLED, bundles.get(SP1).getState());
+		assertEquals(Bundle.RESOLVED, bundles.get(PP1).getState(), PP1);
+		assertEquals(Bundle.INSTALLED, bundles.get(SP1).getState(), SP1);
 
 		// reconnect to let the package though
 		RegionFilter goodRegionFilter = digraph.createRegionFilterBuilder()
@@ -1006,7 +1009,7 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
 		for (Bundle bundle : bundles.values()) {
-			assertEquals("Bundle did not resolve: " + bundle.getSymbolicName(), Bundle.RESOLVED, bundle.getState());
+			assertEquals(Bundle.RESOLVED, bundle.getState(), "Bundle did not resolve: " + bundle.getSymbolicName());
 			bundle.start();
 		}
 
@@ -1019,8 +1022,8 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 		bundleInstaller.refreshPackages(bundles.values().toArray(new Bundle[bundles.size()]));
 		// should not resolve again
 		bundleInstaller.resolveBundles(bundles.values().toArray(new Bundle[bundles.size()]));
-		assertEquals(PP1, Bundle.ACTIVE, bundles.get(PP1).getState());
-		assertEquals(SP1, Bundle.INSTALLED, bundles.get(SP1).getState());
+		assertEquals(Bundle.ACTIVE, bundles.get(PP1).getState(), PP1);
+		assertEquals(Bundle.INSTALLED, bundles.get(SP1).getState(), SP1);
 	}
 
 }
