@@ -13,7 +13,7 @@ This guide helps developers migrate from the legacy Equinox resolver API to the 
 
 ### Legacy Equinox Resolver API
 
-The historic Equinox resolver API provides:
+The historical Equinox resolver API provides:
 - **Package**: `org.eclipse.osgi.service.resolver`
 - **API Location**: `bundles/org.eclipse.osgi/container/src/org/eclipse/osgi/service/resolver`
 - **Implementation**: `bundles/org.eclipse.osgi.compatibility.state`
@@ -375,9 +375,6 @@ if (bundle.isResolved()) {
     
     // Resolved Import-Package
     ExportPackageDescription[] imports = bundle.getResolvedImports();
-    
-    // All resolved dependencies
-    BundleDescription[] dependencies = bundle.getResolvedImports();
 }
 ```
 
@@ -563,7 +560,10 @@ public void testResolution() {
         
         @Override
         public List<Capability> findProviders(Requirement req) {
-            // Return test providers
+            // Return test providers that match the requirement
+            List<Capability> testProviders = new ArrayList<>();
+            // Add capabilities that match the requirement
+            // testProviders.add(someMatchingCapability);
             return testProviders;
         }
     };
