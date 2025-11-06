@@ -85,6 +85,19 @@ public class ServletContextAdaptor {
 		this.classLoader = bundleWiring.getClassLoader();
 	}
 
+	/**
+	 * Creates a dynamic proxy for ServletContext.
+	 * 
+	 * Note: This method requires javax.servlet.descriptor package to be available at runtime,
+	 * even though it is not directly used in this code. This is because ServletContext interface
+	 * contains methods with return types from javax.servlet.descriptor package (e.g.,
+	 * getJspConfigDescriptor() returns JspConfigDescriptor). When creating a dynamic proxy,
+	 * the JVM must be able to load all types referenced in the interface's method signatures.
+	 * 
+	 * This is why javax.servlet.descriptor must be included in the Import-Package directive
+	 * in MANIFEST.MF, even though no code in this bundle directly imports or uses classes
+	 * from that package.
+	 */
 	public ServletContext createServletContext() {
 		Class<?> clazz = getClass();
 		ClassLoader curClassLoader = clazz.getClassLoader();
