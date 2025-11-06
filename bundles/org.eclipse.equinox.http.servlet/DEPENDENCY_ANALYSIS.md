@@ -59,6 +59,18 @@ The `javax.servlet.descriptor` package import is **mandatory** for this bundle t
 ## Related Files
 - `bundles/org.eclipse.equinox.http.servlet/src/org/eclipse/equinox/http/servlet/internal/servlet/ServletContextAdaptor.java` - Creates the dynamic proxy
 - `bundles/org.eclipse.equinox.http.servlet/META-INF/MANIFEST.MF` - Contains the Import-Package directive
+- `bundles/org.eclipse.equinox.http.servlet/demo_proxy_requirement.sh` - Demonstration script showing the proxy requirement
+
+## Demonstration
+
+You can run the demonstration script to see a working example of this issue:
+
+```bash
+cd bundles/org.eclipse.equinox.http.servlet
+bash demo_proxy_requirement.sh
+```
+
+This script creates a simple Java program that demonstrates how dynamic proxy creation requires all types referenced in interface method signatures to be available, even if those methods are never invoked.
 
 ## References
 - [Java Dynamic Proxy Documentation](https://docs.oracle.com/javase/8/docs/api/java/lang/reflect/Proxy.html)
