@@ -87,8 +87,9 @@ else
     echo "✗ Compilation failed"
 fi
 
-# Cleanup
-cd /
+# Cleanup - store original directory for safe cleanup
+ORIGINAL_DIR="$HOME"
+cd "$ORIGINAL_DIR"
 rm -rf "$TEMP_DIR"
 echo ""
 echo "=========================================="

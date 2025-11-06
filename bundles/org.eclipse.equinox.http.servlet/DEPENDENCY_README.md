@@ -23,7 +23,7 @@ This directory contains comprehensive documentation explaining why `javax.servle
    This shows a working example of how dynamic proxy creation requires all interface method signature types to be available.
 
 4. **Source Code Documentation** - See JavaDoc in:
-   - `src/org/eclipse/equinox/http/servlet/internal/servlet/ServletContextAdaptor.java` (line 88)
+   - `src/org/eclipse/equinox/http/servlet/internal/servlet/ServletContextAdaptor.java` (method `createServletContext()`)
 
 ## Key Takeaway
 
@@ -39,7 +39,8 @@ Import-Package: javax.servlet;version="[3.1.0,5.0.0)",
 
 This documentation was created in response to:
 - **GitHub PR #1083** - Automated code cleanup that removed "unused" imports
-- **Review Comment** - https://github.com/eclipse-equinox/equinox/pull/1083/files#r2217621917
+- **Review Comment** (ID: r2217621917) - Noted that javax.servlet.descriptor appears unused but causes runtime failures when removed
+  - URL: https://github.com/eclipse-equinox/equinox/pull/1083/files#r2217621917
 - **Runtime Failure** - Tests failed when javax.servlet.descriptor was removed
 
 ## For Maintainers
