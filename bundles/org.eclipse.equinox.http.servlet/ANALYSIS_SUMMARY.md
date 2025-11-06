@@ -8,7 +8,7 @@ PR #1083 attempted to remove `javax.servlet.descriptor` from the `Import-Package
 ### Root Cause Identified
 The `javax.servlet.descriptor` package is **indirectly required at runtime** due to the use of Java dynamic proxies.
 
-**Location:** `ServletContextAdaptor.java`, line 93
+**Location:** `ServletContextAdaptor.createServletContext()` method
 ```java
 return (ServletContext) Proxy.newProxyInstance(curClassLoader, interfaces, 
                                                 new AdaptorInvocationHandler());

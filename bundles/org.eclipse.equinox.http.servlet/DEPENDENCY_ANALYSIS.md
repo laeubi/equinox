@@ -8,7 +8,7 @@ The dependency on `javax.servlet.descriptor` is **indirect and required at runti
 
 ### Technical Explanation
 
-1. **ServletContextAdaptor creates a dynamic proxy** (see `ServletContextAdaptor.java:93`):
+1. **ServletContextAdaptor creates a dynamic proxy** (see `ServletContextAdaptor.createServletContext()` method):
    ```java
    public ServletContext createServletContext() {
        Class<?> clazz = getClass();

@@ -10,7 +10,10 @@ echo "=========================================="
 echo ""
 
 # Create a temp directory for our test
-TEMP_DIR=$(mktemp -d)
+TEMP_DIR=$(mktemp -d) || {
+    echo "Error: Failed to create temporary directory"
+    exit 1
+}
 echo "Working in: $TEMP_DIR"
 cd "$TEMP_DIR"
 
