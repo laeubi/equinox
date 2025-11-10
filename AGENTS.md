@@ -175,7 +175,7 @@ Native launcher source code is in `features/org.eclipse.equinox.executable.featu
 - **codeql.yml**: Security analysis
 - **tck**: OSGi TCK compliance testing
 - **pr-checks.yml**: Pull request validation
-- **copilot-setup-steps.yml**: Copilot agent environment setup
+- **copilot-setup-steps.yml**: Copilot agent environment setup (NOT part of CI checks, DO NOT modify for repository testing)
 
 ### Jenkins
 The project also uses Jenkins CI (see `Jenkinsfile`) for:
