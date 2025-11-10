@@ -19,6 +19,10 @@ jobs:
     permissions:
       contents: read
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # required for jgit timestamp provider to work
       - name: Set up JDKs
         uses: actions/setup-java@v4
         with:
