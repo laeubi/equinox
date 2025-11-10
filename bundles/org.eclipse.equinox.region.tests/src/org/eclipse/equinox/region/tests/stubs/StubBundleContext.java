@@ -212,6 +212,16 @@ public class StubBundleContext implements BundleContext {
 	}
 
 	@Override
+	public <S> ServiceRegistration<S> registerService(Class<S> clazz,
+			org.osgi.framework.ServiceFactory<S> factory, Dictionary<String, ?> properties) {
+		// For testing purposes, we don't distinguish between ServiceFactory and regular service
+		@SuppressWarnings("unchecked")
+		StubServiceRegistration<S> registration = (StubServiceRegistration<S>) registerService(clazz.getName(), null,
+				properties);
+		return registration;
+	}
+
+	@Override
 	public ServiceReference<?> getServiceReference(String clazz) {
 		ServiceReference<?>[] refs = getAllServiceReferences(clazz, null);
 		return (refs != null && refs.length > 0) ? refs[0] : null;

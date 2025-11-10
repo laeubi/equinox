@@ -13,7 +13,6 @@ package org.eclipse.equinox.region.tests.stubs;
 import java.util.Dictionary;
 import java.util.Hashtable;
 
-import org.osgi.framework.Bundle;
 import org.osgi.framework.ServiceEvent;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
@@ -36,6 +35,10 @@ public class StubServiceRegistration<S> implements ServiceRegistration<S> {
 		this.service = service;
 		this.properties = properties != null ? properties : new Hashtable<>();
 		this.reference = new StubServiceReference<>(bundleContext.getBundle(), this, clazzes, this.properties);
+	}
+
+	public StubServiceRegistration(StubBundleContext bundleContext, String... objectClasses) {
+		this(bundleContext, objectClasses, null, null);
 	}
 
 	@Override

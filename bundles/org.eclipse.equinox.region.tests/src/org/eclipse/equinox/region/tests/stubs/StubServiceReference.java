@@ -22,19 +22,34 @@ import org.osgi.framework.ServiceReference;
  */
 public class StubServiceReference<S> implements ServiceReference<S> {
 	private final Bundle bundle;
-	private final StubServiceRegistration<S> registration;
 	private final String[] clazzes;
-	private Dictionary<String, ?> properties;
+	private Dictionary<String, Object> properties;
 	private static long nextServiceId = 1L;
 	private final long serviceId;
 
 	public StubServiceReference(Bundle bundle, StubServiceRegistration<S> registration, String[] clazzes,
 			Dictionary<String, ?> properties) {
 		this.bundle = bundle;
-		this.registration = registration;
 		this.clazzes = clazzes;
-		this.properties = properties != null ? new Hashtable<>(properties) : new Hashtable<>();
+		this.properties = copyDictionary(properties);
 		this.serviceId = nextServiceId++;
+	}
+
+	public StubServiceReference(StubServiceRegistration<S> registration) {
+		this(registration.getBundleContext().getBundle(), registration,
+				new String[] { "unknown.Service" }, null);
+	}
+
+	private static Dictionary<String, Object> copyDictionary(Dictionary<String, ?> source) {
+		Dictionary<String, Object> result = new Hashtable<>();
+		if (source != null) {
+			java.util.Enumeration<String> keys = source.keys();
+			while (keys.hasMoreElements()) {
+				String key = keys.nextElement();
+				result.put(key, source.get(key));
+			}
+		}
+		return result;
 	}
 
 	@Override
@@ -55,8 +70,9 @@ public class StubServiceReference<S> implements ServiceReference<S> {
 		int i = 0;
 		keys[i++] = Constants.SERVICE_ID;
 		keys[i++] = Constants.OBJECTCLASS;
-		for (Object key : properties.keySet()) {
-			keys[i++] = (String) key;
+		java.util.Enumeration<String> propKeys = properties.keys();
+		while (propKeys.hasMoreElements()) {
+			keys[i++] = propKeys.nextElement();
 		}
 		return keys;
 	}
@@ -92,7 +108,7 @@ public class StubServiceReference<S> implements ServiceReference<S> {
 	}
 
 	public void setProperties(Dictionary<String, ?> properties) {
-		this.properties = properties != null ? new Hashtable<>(properties) : new Hashtable<>();
+		this.properties = copyDictionary(properties);
 	}
 
 	@Override
@@ -100,8 +116,10 @@ public class StubServiceReference<S> implements ServiceReference<S> {
 		Hashtable<String, Object> result = new Hashtable<>();
 		result.put(Constants.SERVICE_ID, serviceId);
 		result.put(Constants.OBJECTCLASS, clazzes);
-		for (Object key : properties.keySet()) {
-			result.put((String) key, properties.get(key));
+		java.util.Enumeration<String> keys = properties.keys();
+		while (keys.hasMoreElements()) {
+			String key = keys.nextElement();
+			result.put(key, properties.get(key));
 		}
 		return result;
 	}

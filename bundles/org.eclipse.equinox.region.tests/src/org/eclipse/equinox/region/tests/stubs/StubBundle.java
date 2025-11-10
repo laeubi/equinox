@@ -48,6 +48,10 @@ public class StubBundle implements Bundle {
 		this.bundleContext = new StubBundleContext(this);
 	}
 
+	public StubBundle(String symbolicName, Version version) {
+		this(1L, symbolicName, version, "/");
+	}
+
 	@Override
 	public long getBundleId() {
 		return bundleId;
