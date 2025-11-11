@@ -745,18 +745,30 @@ public class RegionSystemTests extends AbstractRegionSystemTest {
 		Region systemRegion = digraph.getRegion(0);
 		Region pp1Region = digraph.createRegion(PP1);
 
-		Bundle pp1Bundle = bundleInstaller.installBundle(PP1, null);
-		Region result = digraph.getRegion(pp1Bundle);
-		assertEquals("Wrong region", systemRegion, result);
+		Bundle pp1Bundle = null;
+		try {
+			pp1Bundle = bundleInstaller.installBundle(PP1, null);
+			Region result = digraph.getRegion(pp1Bundle);
+			assertEquals("Wrong region", systemRegion, result);
 
-		pp1Bundle.uninstall();
+			pp1Bundle.uninstall();
+			pp1Bundle = null; // Mark as uninstalled
 
-		digraph.setDefaultRegion(pp1Region);
-		pp1Bundle = bundleInstaller.installBundle(PP1, null);
-		result = digraph.getRegion(pp1Bundle);
-		assertEquals("Wrong region", pp1Region, result);
-
-		digraph.setDefaultRegion(null);
+			digraph.setDefaultRegion(pp1Region);
+			pp1Bundle = bundleInstaller.installBundle(PP1, null);
+			result = digraph.getRegion(pp1Bundle);
+			assertEquals("Wrong region", pp1Region, result);
+		} finally {
+			// Clean up the bundle installed in this test
+			if (pp1Bundle != null) {
+				try {
+					pp1Bundle.uninstall();
+				} catch (Exception e) {
+					// Ignore cleanup errors
+				}
+			}
+			digraph.setDefaultRegion(null);
+		}
 	}
 
 	@Test
