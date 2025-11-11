@@ -113,8 +113,19 @@ public class RegionReflectionUtils {
 		try {
 			Method method = target.getClass().getMethod(methodName, paramTypes);
 			return method.invoke(target, paramArgs);
-		} catch (SecurityException | NoSuchMethodException | IllegalArgumentException | IllegalAccessException
-				| InvocationTargetException e) {
+		} catch (InvocationTargetException e) {
+			// Unwrap and rethrow the actual exception
+			Throwable cause = e.getCause();
+			if (cause instanceof RuntimeException) {
+				throw (RuntimeException) cause;
+			} else if (cause instanceof Error) {
+				throw (Error) cause;
+			} else {
+				// For checked exceptions like BundleException, wrap in a RuntimeException
+				// but preserve the original exception for test assertions
+				throw new RuntimeException(cause);
+			}
+		} catch (SecurityException | NoSuchMethodException | IllegalArgumentException | IllegalAccessException e) {
 			fail(e.getMessage());
 		}
 		return null;
