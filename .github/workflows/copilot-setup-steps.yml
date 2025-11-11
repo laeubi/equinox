@@ -27,7 +27,6 @@ jobs:
             17
             21
           distribution: 'temurin'
-          cache: 'maven'
 
       - name: Set up Maven 3.9.11
         uses: stCarolas/setup-maven@v5
