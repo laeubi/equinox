@@ -157,6 +157,14 @@ public class BundleInstaller {
 			return null;
 		Bundle[] result = uninstallAllBundles();
 		refreshPackages(result);
+		
+		// Verify that all bundles are actually gone from the framework
+		for (Bundle bundle : result) {
+			if (bundle.getState() != Bundle.UNINSTALLED) {
+				System.err.println("WARNING: Bundle " + bundle.getSymbolicName() + " is still in state " + bundle.getState() + " after uninstall and refresh");
+			}
+		}
+		
 		converter.close();
 		bundles = null;
 		return result;
@@ -181,19 +189,33 @@ public class BundleInstaller {
 				refreshed.add(event.getBundle());
 			}
 		};
+		context.addFrameworkListener(listener);
 		context.addBundleListener(refreshBundleListener);
 		try {
-			frameworkWiring.refreshBundles(Arrays.asList(refresh), listener);
+			frameworkWiring.refreshBundles(Arrays.asList(refresh));
 			synchronized (flag) {
+				long timeout = 30000; // 30 second timeout
+				long startTime = System.currentTimeMillis();
 				while (!flag[0]) {
+					long remaining = timeout - (System.currentTimeMillis() - startTime);
+					if (remaining <= 0) {
+						// Timeout - refresh did not complete
+						System.err.println("WARNING: refreshPackages timed out after 30 seconds");
+						break;
+					}
 					try {
-						flag.wait(5000);
+						flag.wait(remaining);
 					} catch (InterruptedException e) {
-						// do nothing
+						// Check if we should continue waiting
+						long elapsed = System.currentTimeMillis() - startTime;
+						if (elapsed >= timeout) {
+							break;
+						}
 					}
 				}
 			}
 		} finally {
+			context.removeFrameworkListener(listener);
 			context.removeBundleListener(refreshBundleListener);
 		}
 		return refreshed.toArray(new Bundle[refreshed.size()]);
