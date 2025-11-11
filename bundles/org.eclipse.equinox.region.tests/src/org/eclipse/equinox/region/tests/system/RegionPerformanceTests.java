@@ -39,7 +39,11 @@ public class RegionPerformanceTests extends TestCase {
 		assertNotNull("No digraph found", digraph);
 
 		bundleInstaller = new BundleInstaller("bundle_tests", testsBundle); //$NON-NLS-1$
-		testBundle = bundleInstaller.installBundle(AbstractRegionSystemTest.PP1);
+		// Check if the bundle is already installed (from a previous run)
+		testBundle = getInstalledBundle(AbstractRegionSystemTest.PP1);
+		if (testBundle == null) {
+			testBundle = bundleInstaller.installBundle(AbstractRegionSystemTest.PP1);
+		}
 		testBundle.start();
 
 	}
@@ -173,5 +177,17 @@ public class RegionPerformanceTests extends TestCase {
 			digraph.connect(system, filter, r);
 		}
 		System.out.println("Done creating region: " + (System.currentTimeMillis() - time));
+	}
+
+	private Bundle getInstalledBundle(String symbolicName) {
+		if (context == null) {
+			return null;
+		}
+		for (Bundle bundle : context.getBundles()) {
+			if (symbolicName.equals(bundle.getSymbolicName())) {
+				return bundle;
+			}
+		}
+		return null;
 	}
 }

@@ -340,14 +340,18 @@ public class RegionServiceFindHookTests {
 	}
 
 	private StubServiceReference<Object> createServiceReference(Bundle stubBundle, String referenceName) {
-		StubServiceRegistration<Object> stubServiceRegistration = new StubServiceRegistration<>(
-				(StubBundleContext) stubBundle.getBundleContext(), referenceName);
-		StubServiceReference<Object> stubServiceReference = new StubServiceReference<>(stubServiceRegistration);
+		// Register the service with the bundle context so it's available to service hooks
+		StubServiceRegistration<Object> stubServiceRegistration = (StubServiceRegistration<Object>) stubBundle
+				.getBundleContext().registerService(referenceName, new Object(), null);
+		StubServiceReference<Object> stubServiceReference = (StubServiceReference<Object>) stubServiceRegistration
+				.getReference();
 		this.serviceReferences.put(referenceName, stubServiceReference);
 
-		StubServiceRegistration<Object> dupServiceRegistration = new StubServiceRegistration<>(
-				(StubBundleContext) stubBundle.getBundleContext(), DUPLICATE + stubBundle.getBundleId());
-		StubServiceReference<Object> dupServiceReference = new StubServiceReference<>(dupServiceRegistration);
+		// Register a duplicate service as well
+		StubServiceRegistration<Object> dupServiceRegistration = (StubServiceRegistration<Object>) stubBundle
+				.getBundleContext().registerService(DUPLICATE + stubBundle.getBundleId(), new Object(), null);
+		StubServiceReference<Object> dupServiceReference = (StubServiceReference<Object>) dupServiceRegistration
+				.getReference();
 		this.serviceReferences.put(DUPLICATE + stubBundle.getBundleId(), dupServiceReference);
 		return stubServiceReference;
 	}
