@@ -75,12 +75,12 @@ public class AbstractRegionSystemTest {
 
 	@After
 	public void tearDown() throws Exception {
+		bundleInstaller.shutdown();
 		for (Region region : digraph) {
 			if (!region.contains(0)) {
 				digraph.removeRegion(region);
 			}
 		}
-		bundleInstaller.shutdown();
 		if (digraphReference != null)
 			getContext().ungetService(digraphReference);
 	}
