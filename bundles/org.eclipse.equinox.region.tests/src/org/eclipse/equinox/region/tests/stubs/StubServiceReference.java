@@ -96,6 +96,16 @@ public class StubServiceReference<S> implements ServiceReference<S> {
 		ServiceReference<?> other = (ServiceReference<?>) reference;
 		Long thisId = (Long) getProperty(Constants.SERVICE_ID);
 		Long otherId = (Long) other.getProperty(Constants.SERVICE_ID);
+		// Handle null service IDs (e.g., for unregistered services)
+		if (thisId == null && otherId == null) {
+			return 0;
+		}
+		if (thisId == null) {
+			return -1;
+		}
+		if (otherId == null) {
+			return 1;
+		}
 		return thisId.compareTo(otherId);
 	}
 
