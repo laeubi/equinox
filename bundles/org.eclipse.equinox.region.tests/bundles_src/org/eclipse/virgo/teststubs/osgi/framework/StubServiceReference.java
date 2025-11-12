@@ -15,6 +15,7 @@ import static org.eclipse.virgo.teststubs.osgi.internal.Assert.assertNotNull;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Dictionary;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -291,5 +292,24 @@ public final class StubServiceReference<S> implements ServiceReference<S> {
     @Override
     public String toString() {
         return String.format("id: %d, ranking: %d", this.serviceId, this.serviceRanking);
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public <A> A adapt(Class<A> type) {
+        // Stub implementation - not used in region tests
+        return null;
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public Dictionary<String, Object> getProperties() {
+        // Stub implementation - return properties from the registration
+        if (this.serviceRegistration != null) {
+            return this.serviceRegistration.getProperties();
+        }
+        return null;
     }
 }

@@ -34,7 +34,9 @@ import org.osgi.framework.Filter;
 import org.osgi.framework.FrameworkListener;
 import org.osgi.framework.InvalidSyntaxException;
 import org.osgi.framework.ServiceEvent;
+import org.osgi.framework.ServiceFactory;
 import org.osgi.framework.ServiceListener;
+import org.osgi.framework.ServiceObjects;
 import org.osgi.framework.ServiceReference;
 import org.osgi.framework.ServiceRegistration;
 import org.osgi.framework.Version;
@@ -591,9 +593,26 @@ public final class StubBundleContext implements BundleContext {
      * @throws IllegalStateException if the context is not in a valid state
      */
     private void ensureValidState() {
-        int state = this.contextBundle.getState();
+        int state = this.bundle.getState();
         if (state != Bundle.STARTING && state != Bundle.ACTIVE && state != Bundle.STOPPING) {
             throw new IllegalStateException("This context is no longer valid");
         }
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    @SuppressWarnings("unchecked")
+    public <S> ServiceObjects<S> getServiceObjects(ServiceReference<S> reference) {
+        // Stub implementation - not used in region tests
+        return null;
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public <S> ServiceRegistration<S> registerService(Class<S> clazz, ServiceFactory<S> factory, Dictionary<String, ?> properties) {
+        // Stub implementation - delegates to string-based registration
+        return (ServiceRegistration<S>) registerService(clazz.getName(), factory, properties);
     }
 }
