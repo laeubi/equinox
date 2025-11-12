@@ -113,11 +113,19 @@ public class RegionReflectionUtils {
 		try {
 			Method method = target.getClass().getMethod(methodName, paramTypes);
 			return method.invoke(target, paramArgs);
-		} catch (SecurityException | NoSuchMethodException | IllegalArgumentException | IllegalAccessException
-				| InvocationTargetException e) {
+		} catch (InvocationTargetException e) {
+			// Unwrap and rethrow the original exception using sneaky throw
+			Throwable cause = e.getCause();
+			RegionReflectionUtils.<RuntimeException>sneakyThrow(cause);
+		} catch (SecurityException | NoSuchMethodException | IllegalArgumentException | IllegalAccessException e) {
 			fail(e.getMessage());
 		}
 		return null;
+	}
+
+	@SuppressWarnings("unchecked")
+	private static <T extends Throwable> void sneakyThrow(Throwable t) throws T {
+		throw (T) t;
 	}
 
 	public static Region getRegion(Object bundleIdToRegionMapping, long testBundleId) {

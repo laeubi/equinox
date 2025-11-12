@@ -1,3 +1,18 @@
-The teststubs are built out of the virgo project.  
+The teststubs were originally built out of the virgo project.  
 Note that the source for this jar is dependent on the org.osgi API and implements stubs for many org.osgi.* types.
-If and when the org.osgi.* types are modified, this jar will have to be updated and recompiled.
+If and when the org.osgi.* types are modified, the sources will have to be updated and recompiled.
+
+AspectJ Removal (2024):
+The original teststubs used AspectJ aspects for event firing and validation. These have been converted to pure Java:
+
+- BundleEvents aspect: Converted to inline event firing in StubBundle and StubBundleContext methods
+- ServiceEvents aspect: Converted to inline event firing in StubServiceRegistration and StubBundleContext.registerService
+- BundleValid aspect: Converted to ensureNotUninstalled() validation checks in StubBundle methods
+- ValidBundleContext aspect: Converted to ensureValidState() validation checks in StubBundleContext methods
+- ValidServiceRegistration aspect: Converted to ensureNotUnregistered() validation checks in StubServiceRegistration methods
+- BundleModifier aspect: Converted to inline lastModified timestamp updates in StubBundle methods
+- DeletedConfiguration aspect: Converted to ensureNotDeleted() validation checks in StubConfiguration methods
+- AspectPrecedence aspect: Removed (no longer needed without aspects)
+
+The Java sources are now in ../bundles_src/ directory and compiled directly instead of using the jar files.
+The original jar files (org.eclipse.virgo.teststubs.osgi.jar and org.eclipse.virgo.teststubs.osgi-sources.jar) are kept for reference but are no longer used in the build.

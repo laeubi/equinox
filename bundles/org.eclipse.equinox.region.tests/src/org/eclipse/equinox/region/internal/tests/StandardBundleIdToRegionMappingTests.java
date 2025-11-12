@@ -73,7 +73,7 @@ public class StandardBundleIdToRegionMappingTests {
 		assertFalse(RegionReflectionUtils.isBundleAssociatedWithRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID,
 				mockRegion));
 		RegionReflectionUtils.associateBundleWithRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID, mockRegion);
-		assertFalse(RegionReflectionUtils.isBundleAssociatedWithRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID,
+		assertTrue(RegionReflectionUtils.isBundleAssociatedWithRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID,
 				mockRegion));
 	}
 
@@ -101,8 +101,8 @@ public class StandardBundleIdToRegionMappingTests {
 		assertNull(RegionReflectionUtils.getRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID));
 		RegionReflectionUtils.associateBundleWithRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID, mockRegion);
 		RegionReflectionUtils.associateBundleWithRegion(this.bundleIdToRegionMapping, OTHER_TEST_BUNDLE_ID, mockRegion);
-		assertNull(RegionReflectionUtils.getRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID));
-		assertNull(RegionReflectionUtils.getRegion(this.bundleIdToRegionMapping, OTHER_TEST_BUNDLE_ID));
+		assertEquals(mockRegion, RegionReflectionUtils.getRegion(this.bundleIdToRegionMapping, TEST_BUNDLE_ID));
+		assertEquals(mockRegion, RegionReflectionUtils.getRegion(this.bundleIdToRegionMapping, OTHER_TEST_BUNDLE_ID));
 	}
 
 }
