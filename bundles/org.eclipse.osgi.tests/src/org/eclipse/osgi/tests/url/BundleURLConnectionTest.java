@@ -168,12 +168,12 @@ public class BundleURLConnectionTest {
 
 	@Test
 	public void testBundleURL_parseRelativePathWithQuery() throws Exception {
-		URL base = classBundle.getEntry("/some/path/");
+		URL base = classBundle.getEntry("/META-INF/");
 		assertNotNull("Entry should exist", base);
 
 		URL urlWithQuery = new URL(base, "resource.txt?param=value");
 
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
-		assertEquals("/some/path/resource.txt", urlWithQuery.getPath());
+		assertEquals("/META-INF/resource.txt", urlWithQuery.getPath());
 	}
 }
