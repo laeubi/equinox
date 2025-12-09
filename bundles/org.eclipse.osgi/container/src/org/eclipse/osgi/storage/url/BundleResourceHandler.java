@@ -34,7 +34,7 @@ import org.osgi.framework.Bundle;
 /**
  * URLStreamHandler the bundleentry and bundleresource protocols.
  */
-
+//TODO needs fixing for parsing query correctly!
 public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 	// Bundle resource URL protocol
 	public static final String OSGI_RESOURCE_URL_PROTOCOL = "bundleresource"; //$NON-NLS-1$
@@ -94,16 +94,32 @@ public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 				}
 			host = spec.substring(bundleIdIdx, bundleIdEnd);
 		}
-		if (pathIdx < end && spec.charAt(pathIdx) == '/')
-			path = spec.substring(pathIdx, end);
-		else if (end > pathIdx) {
+		// Extract query and fragment from the spec
+		// Query comes after '?' and before '#' (fragment)
+		String query = null;
+		int queryIdx = spec.indexOf('?', pathIdx);
+		int fragmentIdx = spec.indexOf('#', pathIdx);
+		int pathEnd = end;
+		
+		// Determine where the path ends (before query or fragment)
+		if (fragmentIdx >= 0 && fragmentIdx < pathEnd) {
+			pathEnd = fragmentIdx;
+		}
+		if (queryIdx >= 0 && queryIdx < pathEnd) {
+			query = spec.substring(queryIdx + 1, pathEnd);
+			pathEnd = queryIdx;
+		}
+		
+		if (pathIdx < pathEnd && spec.charAt(pathIdx) == '/')
+			path = spec.substring(pathIdx, pathEnd);
+		else if (pathEnd > pathIdx) {
 			if (path == null || path.equals("")) //$NON-NLS-1$
 				path = "/"; //$NON-NLS-1$
 			int last = path.lastIndexOf('/') + 1;
 			if (last == 0)
-				path = spec.substring(pathIdx, end);
+				path = spec.substring(pathIdx, pathEnd);
 			else
-				path = path.substring(0, last) + spec.substring(pathIdx, end);
+				path = path.substring(0, last) + spec.substring(pathIdx, pathEnd);
 		}
 		if (path == null)
 			path = ""; //$NON-NLS-1$
@@ -138,7 +154,7 @@ public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 		// ensures that this URL was created by using this parseURL
 		// method. The openConnection method will only open URLs
 		// that have the authority set to this.
-		setURL(url, url.getProtocol(), host, resIndex, authorized, null, path, null, url.getRef());
+		setURL(url, url.getProtocol(), host, resIndex, authorized, null, path, query, url.getRef());
 	}
 
 	private Module getModule(long id) {
@@ -222,6 +238,10 @@ public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 				result.append("/"); //$NON-NLS-1$
 			}
 			result.append(path);
+		}
+		String query = url.getQuery();
+		if (query != null && query.length() > 0) {
+			result.append('?').append(query);
 		}
 		String ref = url.getRef();
 		if (ref != null && ref.length() > 0) {

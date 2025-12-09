@@ -16,6 +16,7 @@ package org.eclipse.osgi.tests.url;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertSame;
 
@@ -104,5 +105,75 @@ public class BundleURLConnectionTest {
 
 		Bundle bundle = ((BundleReference) connection).getBundle();
 		assertSame(expectedBundle, bundle);
+	}
+
+	@Test
+	public void testBundleEntryURL_withQueryParameter() throws Exception {
+		URL entry = classBundle.getEntry("/META-INF/MANIFEST.MF");
+		assertNotNull("Entry should exist", entry);
+
+		URL urlWithQuery = new URL(entry.toExternalForm() + "?param=value");
+
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+
+		String externalForm = urlWithQuery.toExternalForm();
+		assertEquals("External form should include query", entry.toExternalForm() + "?param=value", externalForm);
+	}
+
+	@Test
+	public void testBundleEntryURL_withMultipleQueryParameters() throws Exception {
+		URL entry = classBundle.getEntry("/META-INF/MANIFEST.MF");
+		assertNotNull("Entry should exist", entry);
+
+		URL urlWithQuery = new URL(entry.toExternalForm() + "?param1=value1&param2=value2");
+
+		assertEquals("Query parameters should be preserved", "param1=value1&param2=value2", urlWithQuery.getQuery());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+	}
+
+	@Test
+	public void testBundleResourceURL_withQueryParameter() throws Exception {
+		URL resource = classBundle.getResource("/META-INF/MANIFEST.MF");
+		assertNotNull("Resource should exist", resource);
+
+		URL urlWithQuery = new URL(resource.toExternalForm() + "?param=value");
+
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+	}
+
+	@Test
+	public void testBundleEntryURL_withQueryAndFragment() throws Exception {
+		URL entry = classBundle.getEntry("/META-INF/MANIFEST.MF");
+		assertNotNull("Entry should exist", entry);
+
+		URL urlWithQueryAndFragment = new URL(entry.toExternalForm() + "?param=value#section");
+
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQueryAndFragment.getQuery());
+		assertEquals("Fragment should be preserved", "section", urlWithQueryAndFragment.getRef());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQueryAndFragment.getPath());
+	}
+
+	@Test
+	public void testBundleURL_constructorWithQuery() throws Exception {
+		URL entry = classBundle.getEntry("/");
+		assertNotNull("Entry should exist", entry);
+
+		URL urlWithQuery = new URL(entry, "META-INF/MANIFEST.MF?param=value");
+
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+	}
+
+	@Test
+	public void testBundleURL_parseRelativePathWithQuery() throws Exception {
+		URL base = classBundle.getEntry("/some/path/");
+		assertNotNull("Entry should exist", base);
+
+		URL urlWithQuery = new URL(base, "resource.txt?param=value");
+
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
+		assertEquals("/some/path/resource.txt", urlWithQuery.getPath());
 	}
 }
