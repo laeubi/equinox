@@ -34,7 +34,6 @@ import org.osgi.framework.Bundle;
 /**
  * URLStreamHandler the bundleentry and bundleresource protocols.
  */
-//TODO needs fixing for parsing query correctly!
 public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 	// Bundle resource URL protocol
 	public static final String OSGI_RESOURCE_URL_PROTOCOL = "bundleresource"; //$NON-NLS-1$
@@ -95,16 +94,20 @@ public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 			host = spec.substring(bundleIdIdx, bundleIdEnd);
 		}
 		// Extract query and fragment from the spec
-		// Query comes after '?' and before '#' (fragment)
+		// Per RFC3986: fragment comes after '#' and consumes everything after it
+		// Query comes after '?' and before '#' (if present)
 		String query = null;
+		String ref = null;
 		int queryIdx = spec.indexOf('?', pathIdx);
 		int fragmentIdx = spec.indexOf('#', pathIdx);
 		int pathEnd = end;
 		
-		// Determine where the path ends (before query or fragment)
+		// Fragment comes first - it consumes everything after '#'
 		if (fragmentIdx >= 0 && fragmentIdx < pathEnd) {
+			ref = spec.substring(fragmentIdx + 1, end);
 			pathEnd = fragmentIdx;
 		}
+		// Query comes after '?' but before fragment (if present)
 		if (queryIdx >= 0 && queryIdx < pathEnd) {
 			query = spec.substring(queryIdx + 1, pathEnd);
 			pathEnd = queryIdx;
@@ -154,7 +157,7 @@ public abstract class BundleResourceHandler extends PlurlStreamHandlerBase {
 		// ensures that this URL was created by using this parseURL
 		// method. The openConnection method will only open URLs
 		// that have the authority set to this.
-		setURL(url, url.getProtocol(), host, resIndex, authorized, null, path, query, url.getRef());
+		setURL(url, url.getProtocol(), host, resIndex, authorized, null, path, query, ref);
 	}
 
 	private Module getModule(long id) {

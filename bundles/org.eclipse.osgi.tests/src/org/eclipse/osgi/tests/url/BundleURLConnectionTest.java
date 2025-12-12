@@ -176,4 +176,51 @@ public class BundleURLConnectionTest {
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
 		assertEquals("/META-INF/resource.txt", urlWithQuery.getPath());
 	}
+
+	@Test
+	public void testBundleURL_openConnectionWithQuery() throws Exception {
+		// Test that URLs with query parameters can be opened and read correctly
+		URL entry = classBundle.getEntry("/META-INF/MANIFEST.MF");
+		assertNotNull("Entry should exist", entry);
+
+		// Create URL with query parameter
+		URL urlWithQuery = new URL(entry.toExternalForm() + "?param=value");
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
+
+		// Open connection and read content
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+
+		// Verify we can read the content (MANIFEST.MF should contain "Manifest-Version")
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
+	}
+
+	@Test
+	public void testBundleURL_openConnectionWithQueryAndFragment() throws Exception {
+		// Test that URLs with both query and fragment can be opened and read correctly
+		URL entry = classBundle.getEntry("/META-INF/MANIFEST.MF");
+		assertNotNull("Entry should exist", entry);
+
+		// Create URL with query parameter and fragment
+		URL urlWithQueryAndFragment = new URL(entry.toExternalForm() + "?param=value#section");
+		assertEquals("Query parameter should be preserved", "param=value", urlWithQueryAndFragment.getQuery());
+		assertEquals("Fragment should be preserved", "section", urlWithQueryAndFragment.getRef());
+
+		// Open connection and read content
+		URLConnection connection = urlWithQueryAndFragment.openConnection();
+		assertNotNull("Connection should not be null", connection);
+
+		// Verify we can read the content
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
+	}
 }
