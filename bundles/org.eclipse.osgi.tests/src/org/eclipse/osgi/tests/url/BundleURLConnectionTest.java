@@ -119,6 +119,15 @@ public class BundleURLConnectionTest {
 
 		String externalForm = urlWithQuery.toExternalForm();
 		assertEquals("External form should include query", entry.toExternalForm() + "?param=value", externalForm);
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
@@ -130,6 +139,15 @@ public class BundleURLConnectionTest {
 
 		assertEquals("Query parameters should be preserved", "param1=value1&param2=value2", urlWithQuery.getQuery());
 		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
@@ -141,6 +159,15 @@ public class BundleURLConnectionTest {
 
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
 		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
@@ -153,6 +180,15 @@ public class BundleURLConnectionTest {
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQueryAndFragment.getQuery());
 		assertEquals("Fragment should be preserved", "section", urlWithQueryAndFragment.getRef());
 		assertEquals("/META-INF/MANIFEST.MF", urlWithQueryAndFragment.getPath());
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQueryAndFragment.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
@@ -164,6 +200,15 @@ public class BundleURLConnectionTest {
 
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
 		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
@@ -171,10 +216,20 @@ public class BundleURLConnectionTest {
 		URL base = classBundle.getEntry("/META-INF/");
 		assertNotNull("Entry should exist", base);
 
-		URL urlWithQuery = new URL(base, "resource.txt?param=value");
+		// Note: Using MANIFEST.MF instead of resource.txt since it actually exists
+		URL urlWithQuery = new URL(base, "MANIFEST.MF?param=value");
 
 		assertEquals("Query parameter should be preserved", "param=value", urlWithQuery.getQuery());
-		assertEquals("/META-INF/resource.txt", urlWithQuery.getPath());
+		assertEquals("/META-INF/MANIFEST.MF", urlWithQuery.getPath());
+
+		// Verify the URL can be opened and content can be read
+		URLConnection connection = urlWithQuery.openConnection();
+		assertNotNull("Connection should not be null", connection);
+		byte[] buffer = new byte[1024];
+		int bytesRead = connection.getInputStream().read(buffer);
+		assertThat("Should read some bytes", bytesRead > 0);
+		String content = new String(buffer, 0, bytesRead);
+		assertThat("Content should contain 'Manifest-Version'", content.contains("Manifest-Version"));
 	}
 
 	@Test
