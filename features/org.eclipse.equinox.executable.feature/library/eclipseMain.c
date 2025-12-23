@@ -256,8 +256,22 @@ static _TCHAR* findProgram(_TCHAR* argv[]) {
     if (program == NULL)
     {
 #ifdef _WIN32
-    	program = malloc( MAX_PATH_LENGTH + 1 );
-    	GetModuleFileName( NULL, program, MAX_PATH_LENGTH );
+    	/* GetModuleFileName with extended-length path support.
+    	 * Start with a reasonable buffer size and grow if needed.
+    	 * GetModuleFileName returns the number of characters written (excluding null).
+    	 * If the buffer is too small, it returns the buffer size (nSize).
+    	 * We keep doubling the buffer until we get result < size. */
+    	DWORD size = MAX_PATH_LENGTH + 1;
+    	DWORD result;
+    	program = malloc( size * sizeof(_TCHAR) );
+    	result = GetModuleFileName( NULL, program, size );
+    	/* Loop while buffer might be truncated (result == size means truncated) */
+    	while (result == size && result != 0) {
+    		free(program);
+    		size *= 2;
+    		program = malloc( size * sizeof(_TCHAR) );
+    		result = GetModuleFileName( NULL, program, size );
+    	}
     	argv[0] = program;
 #else
     	program = malloc( (strlen( argv[0] ) + 1) * sizeof(_TCHAR) );
@@ -396,8 +410,13 @@ _TCHAR* getDirFromProgram(_TCHAR* program)
 
 	/* Can't figure out from the program, lets use the cwd */
 	free(programDir);
+#ifdef _WIN32
+	/* On Windows, passing NULL and 0 makes _getcwd allocate the buffer */
+	programDir = _tgetcwd( NULL, 0 );
+#else
 	programDir = malloc( MAX_PATH_LENGTH * sizeof (_TCHAR));
 	_tgetcwd( programDir, MAX_PATH_LENGTH );
+#endif
 	return programDir;
 }
 
