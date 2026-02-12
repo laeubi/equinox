@@ -122,9 +122,9 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 	}
 
 	/**
-	 * Tests that the ContextFinder is available as the thread context class loader
-	 * on ForkJoinPool common pool worker threads, which are used by parallel
-	 * streams.
+	 * Reproducer for issue 1243: Verifies that the ContextFinder is NOT available
+	 * as the thread context class loader on ForkJoinPool common pool worker threads,
+	 * which are used by parallel streams.
 	 * <p>
 	 * In Java 25, ForkJoinPool common pool threads became
 	 * {@code InnocuousForkJoinWorkerThread} (previously only used when a
@@ -190,8 +190,9 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 	}
 
 	/**
-	 * Tests that the ContextFinder is available as the thread context class loader
-	 * on virtual threads.
+	 * Verifies that the ContextFinder IS correctly inherited as the thread context
+	 * class loader on virtual threads when created from a thread that has the
+	 * ContextFinder set.
 	 * <p>
 	 * Virtual threads inherit the TCCL from the creating thread. If the creating
 	 * thread has the ContextFinder as TCCL (which is what Equinox sets up), then
@@ -323,10 +324,11 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 	}
 
 	/**
-	 * Tests that classloading via the thread context class loader works correctly
-	 * on ForkJoinPool common pool threads. This simulates what happens when
-	 * {@code ServiceLoader.load()} or other TCCL-dependent mechanisms are used
-	 * inside a parallel stream in an OSGi bundle.
+	 * Reproducer for issue 1243: Demonstrates that classloading via the thread
+	 * context class loader does NOT work correctly on ForkJoinPool common pool
+	 * threads. This simulates what happens when {@code ServiceLoader.load()} or
+	 * other TCCL-dependent mechanisms are used inside a parallel stream in an OSGi
+	 * bundle.
 	 * <p>
 	 * In the scenario described in issue 1243, the indriya library's
 	 * {@code DefaultSystemOfUnitsService} is loaded via {@code ServiceLoader} from
