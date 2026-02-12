@@ -32,7 +32,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
-import org.eclipse.osgi.internal.framework.ContextFinder;
 import org.eclipse.osgi.tests.OSGiTestsActivator;
 import org.junit.Test;
 import org.osgi.framework.BundleContext;
@@ -67,7 +66,8 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 				.getService(bc.getServiceReferences(ClassLoader.class, "(equinox.classloader.type=contextClassLoader)")
 						.iterator().next());
 		assertNotNull("ContextFinder service not found", contextFinder);
-		assertTrue("Expected ContextFinder instance", contextFinder instanceof ContextFinder);
+		assertTrue("Expected ContextFinder instance, got: " + contextFinder.getClass().getName(),
+				isContextFinder(contextFinder));
 		return contextFinder;
 	}
 
@@ -97,6 +97,17 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 		} catch (NoSuchMethodException e) {
 			return false;
 		}
+	}
+
+	private static final String CONTEXT_FINDER_CLASS_NAME = "org.eclipse.osgi.internal.framework.ContextFinder";
+
+	/**
+	 * Checks if the given classloader is a ContextFinder instance. Uses class name
+	 * comparison because the test framework creates a child framework with its own
+	 * classloader, so {@code instanceof} would fail across classloader boundaries.
+	 */
+	private static boolean isContextFinder(ClassLoader cl) {
+		return cl != null && cl.getClass().getName().equals(CONTEXT_FINDER_CLASS_NAME);
 	}
 
 	@Test
@@ -153,7 +164,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 				Thread t = Thread.currentThread();
 				ClassLoader tccl = t.getContextClassLoader();
 				// Only check non-main threads (ForkJoinPool workers)
-				if (!t.getName().equals("main") && !(tccl instanceof ContextFinder)) {
+				if (!t.getName().equals("main") && !isContextFinder(tccl)) {
 					String info = t.getName() + " (class=" + t.getClass().getName() + ", TCCL="
 							+ (tccl != null ? tccl.getClass().getName() : "null") + ")";
 					workerThreadsWithoutContextFinder.add(info);
@@ -214,7 +225,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 					try {
 						Thread t = Thread.currentThread();
 						ClassLoader tccl = t.getContextClassLoader();
-						if (!(tccl instanceof ContextFinder)) {
+						if (!isContextFinder(tccl)) {
 							virtualThreadsWithoutContextFinder.add(t.getName() + " (TCCL="
 									+ (tccl != null ? tccl.getClass().getName() : "null") + ")");
 						}
@@ -274,7 +285,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 						try {
 							Thread t = Thread.currentThread();
 							ClassLoader tccl = t.getContextClassLoader();
-							if (!(tccl instanceof ContextFinder)) {
+							if (!isContextFinder(tccl)) {
 								virtualThreadsWithoutContextFinder
 										.add("VirtualThread created from " + fjpThread.getName() + " (TCCL="
 												+ (tccl != null ? tccl.getClass().getName() : "null") + ")");
@@ -347,7 +358,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 				// Thread.currentThread().getContextClassLoader()
 				// If TCCL is not ContextFinder, it will use system classloader
 				// which cannot find OSGi bundle classes
-				if (!(tccl instanceof ContextFinder) && !t.getName().equals("main")) {
+				if (!isContextFinder(tccl) && !t.getName().equals("main")) {
 					failedThreads.add(t.getName() + " (class=" + t.getClass().getName() + ")");
 				}
 			});
