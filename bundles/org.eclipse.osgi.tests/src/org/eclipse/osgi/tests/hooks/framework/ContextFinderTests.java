@@ -17,11 +17,9 @@ import static org.eclipse.osgi.tests.bundles.AbstractBundleTests.stopQuietly;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -69,34 +67,6 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 		assertTrue("Expected ContextFinder instance, got: " + contextFinder.getClass().getName(),
 				isContextFinder(contextFinder));
 		return contextFinder;
-	}
-
-	/**
-	 * Starts a virtual thread using reflection (since the test bundle targets
-	 * JavaSE-17 but virtual threads require Java 21+). Returns null if virtual
-	 * threads are not available.
-	 */
-	private static Thread startVirtualThread(Runnable task) {
-		try {
-			Method m = Thread.class.getMethod("startVirtualThread", Runnable.class);
-			return (Thread) m.invoke(null, task);
-		} catch (NoSuchMethodException e) {
-			return null; // Virtual threads not available
-		} catch (ReflectiveOperationException e) {
-			throw new RuntimeException("Failed to start virtual thread", e);
-		}
-	}
-
-	/**
-	 * Returns true if virtual threads are available (Java 21+).
-	 */
-	private static boolean isVirtualThreadSupported() {
-		try {
-			Thread.class.getMethod("startVirtualThread", Runnable.class);
-			return true;
-		} catch (NoSuchMethodException e) {
-			return false;
-		}
 	}
 
 	private static final String CONTEXT_FINDER_CLASS_NAME = "org.eclipse.osgi.internal.framework.ContextFinder";
@@ -207,7 +177,6 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 	 */
 	@Test
 	public void testContextFinderOnVirtualThreads() throws Exception {
-		assumeTrue("Virtual threads require Java 21+", isVirtualThreadSupported());
 		ClassLoader contextFinder = getContextFinderService();
 
 		Thread currentThread = Thread.currentThread();
@@ -222,7 +191,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 			CountDownLatch latch = new CountDownLatch(threadCount);
 
 			for (int i = 0; i < threadCount; i++) {
-				Thread vt = startVirtualThread(() -> {
+				Thread vt = Thread.startVirtualThread(() -> {
 					try {
 						Thread t = Thread.currentThread();
 						ClassLoader tccl = t.getContextClassLoader();
@@ -264,7 +233,6 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 	 */
 	@Test
 	public void testContextFinderOnVirtualThreadsFromForkJoinPool() throws Exception {
-		assumeTrue("Virtual threads require Java 21+", isVirtualThreadSupported());
 		ClassLoader contextFinder = getContextFinderService();
 
 		Thread currentThread = Thread.currentThread();
@@ -282,7 +250,7 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 				// Only test from actual FJP worker threads, not the main thread
 				if (!fjpThread.getName().equals("main")) {
 					CountDownLatch vtDone = new CountDownLatch(1);
-					Thread vt = startVirtualThread(() -> {
+					Thread.startVirtualThread(() -> {
 						try {
 							Thread t = Thread.currentThread();
 							ClassLoader tccl = t.getContextClassLoader();
@@ -295,12 +263,10 @@ public class ContextFinderTests extends AbstractFrameworkHookTests {
 							vtDone.countDown();
 						}
 					});
-					if (vt != null) {
-						try {
-							vtDone.await(10, TimeUnit.SECONDS);
-						} catch (InterruptedException e) {
-							Thread.currentThread().interrupt();
-						}
+					try {
+						vtDone.await(10, TimeUnit.SECONDS);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
 					}
 				}
 				allDone.countDown();
