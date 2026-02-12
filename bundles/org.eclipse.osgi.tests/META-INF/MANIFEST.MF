@@ -34,7 +34,7 @@ Export-Package: org.eclipse.osgi.tests.appadmin;
    org.osgi.framework.launch,
    org.osgi.service.packageadmin,
    org.osgi.service.startlevel"
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-21
 DynamicImport-Package: ext.framework.b
 Eclipse-BundleShape: dir
 Automatic-Module-Name: org.eclipse.osgi.tests

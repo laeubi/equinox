@@ -1,0 +1,6 @@
+Bundle-SymbolicName: org.eclipse.equinox.examples.indriya-osgi-api
+Export-Package: org.eclipse.equinox.examples.contextfinder
+Import-Package: \
+    javax.measure,\
+    javax.measure.spi,\
+    tech.units.indriya.unit
