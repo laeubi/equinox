@@ -34,6 +34,7 @@ import org.osgi.framework.BundleContext;
  * <li>{@code -Dtest.virtual.thread=true} — test in virtual thread</li>
  * <li>{@code -Dtest.parallel.stream=true} — test in parallel stream</li>
  * <li>{@code -Dtest.preload=true} — pre-load class before other tests</li>
+ * <li>{@code -Dtest.user.workaround=true} — test with user TCCL workaround in parallel stream</li>
  * <li>{@code -Dtest.all=true} — run all tests (default if no property set)</li>
  * </ul>
  *
@@ -96,6 +97,25 @@ public class TestActivator implements BundleActivator {
 		if (runAll || getBooleanProperty("test.parallel.stream", false)) {
 			log("--- TEST: Access IndriyaAndOSGi.HOUR in Parallel Stream ---");
 			testInParallelStream();
+			log("");
+		}
+
+		if (runAll || getBooleanProperty("test.user.workaround", false)) {
+			log("--- TEST: Access IndriyaAndOSGi.HOUR in Parallel Stream with User TCCL Workaround ---");
+			log("  NOTE: This test demonstrates the user workaround of explicitly setting");
+			log("  the TCCL on each ForkJoinPool worker thread before accessing TCCL-dependent");
+			log("  code. This is boilerplate-heavy but works reliably.");
+			testInParallelStreamWithUserWorkaround();
+			log("");
+		}
+
+		// Check if a custom ForkJoinPool thread factory is active
+		String threadFactory = System.getProperty("java.util.concurrent.ForkJoinPool.common.threadFactory");
+		if (threadFactory != null) {
+			log("--- INFO: Custom ForkJoinPool.common.threadFactory is active ---");
+			log("  Factory class: " + threadFactory);
+			log("  This should cause ForkJoinPool worker threads to inherit the ContextFinder");
+			log("  TCCL, fixing the issue without any user workaround code.");
 			log("");
 		}
 
@@ -216,6 +236,74 @@ public class TestActivator implements BundleActivator {
 				+ " with WRONG TCCL out of " + parallelResults.size() + " tasks";
 		log(msg);
 		results.add(new TestResult("ParallelStream", wrongTCCL == 0, msg));
+	}
+
+	/**
+	 * Tests the "user workaround" for the TCCL issue: explicitly capturing the
+	 * TCCL from the calling thread and setting it on each ForkJoinPool worker
+	 * thread before accessing TCCL-dependent code.
+	 * <p>
+	 * This is the workaround described in the README:
+	 * <pre>
+	 * ClassLoader contextFinder = Thread.currentThread().getContextClassLoader();
+	 * myList.parallelStream().forEach(item -> {
+	 *     Thread.currentThread().setContextClassLoader(contextFinder);
+	 *     // ... use ServiceLoader-dependent code ...
+	 * });
+	 * </pre>
+	 * <p>
+	 * While this works, it is boilerplate-heavy and error-prone: every parallel
+	 * stream operation that might trigger TCCL-dependent code needs this wrapper.
+	 */
+	private void testInParallelStreamWithUserWorkaround() {
+		List<TestResult> parallelResults = new java.util.concurrent.CopyOnWriteArrayList<>();
+		int parallelism = ForkJoinPool.getCommonPoolParallelism();
+		log("  ForkJoinPool parallelism: " + parallelism);
+
+		// Capture the TCCL from the current (main) thread — this is the ContextFinder
+		ClassLoader callerTccl = Thread.currentThread().getContextClassLoader();
+		log("  Captured caller TCCL: " + (callerTccl != null
+				? callerTccl.getClass().getName() + "@" + Integer.toHexString(callerTccl.hashCode())
+				: "null"));
+
+		IntStream.range(0, parallelism * 4).parallel().forEach(i -> {
+			Thread t = Thread.currentThread();
+			String label = "UserWorkaround[" + i + "] on " + t.getName();
+
+			// === USER WORKAROUND: set the captured TCCL on this worker thread ===
+			ClassLoader originalTccl = t.getContextClassLoader();
+			t.setContextClassLoader(callerTccl);
+			try {
+				ClassLoader tccl = t.getContextClassLoader();
+				boolean hasContextFinder = tccl != null
+						&& tccl.getClass().getName().contains("ContextFinder");
+				if (i == 0 || !t.getName().equals("main")) {
+					logThreadInfo(label, t);
+				}
+				try {
+					Unit<?> hour = IndriyaAndOSGi.getHour();
+					if (!t.getName().equals("main")) {
+						log("  " + label + " -> SUCCESS: " + hour
+								+ (hasContextFinder ? " (TCCL is correct)" : " (TCCL was set by workaround)"));
+					}
+					parallelResults.add(new TestResult(label, true, "SUCCESS"));
+				} catch (Throwable ex) {
+					log("  " + label + " -> FAILED: " + ex);
+					ex.printStackTrace(System.err);
+					parallelResults.add(new TestResult(label, false, ex.toString()));
+				}
+			} finally {
+				// Restore original TCCL to avoid leaking into other tasks
+				t.setContextClassLoader(originalTccl);
+			}
+		});
+
+		long successes = parallelResults.stream().filter(r -> r.success).count();
+		long failures = parallelResults.stream().filter(r -> !r.success).count();
+		String msg = "UserWorkaround -> " + successes + " successes, " + failures
+				+ " failures out of " + parallelResults.size() + " tasks";
+		log(msg);
+		results.add(new TestResult("UserWorkaround", failures == 0, msg));
 	}
 
 	private void printSummary() {

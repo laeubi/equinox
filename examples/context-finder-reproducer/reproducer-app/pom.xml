@@ -90,7 +90,11 @@
                     </archive>
                 </configuration>
             </plugin>
-            <!-- Run the reproducer during verify phase -->
+            <!-- Run the reproducer during verify phase using a forked JVM -->
+            <!-- A forked JVM is essential so that:
+                 1. The ForkJoinPool.common.threadFactory property takes effect
+                    (it must be set before ForkJoinPool is first used)
+                 2. The JVM's ForkJoinPool common pool is fresh (not shared with Maven) -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
@@ -100,19 +104,25 @@
                         <id>run-reproducer</id>
                         <phase>verify</phase>
                         <goals>
-                            <goal>java</goal>
+                            <goal>exec</goal>
                         </goals>
                     </execution>
                 </executions>
                 <configuration>
-                    <mainClass>org.eclipse.equinox.examples.contextfinder.app.ReproducerApp</mainClass>
-                    <classpathScope>runtime</classpathScope>
-                    <systemProperties>
-                        <systemProperty>
-                            <key>test.all</key>
-                            <value>true</value>
-                        </systemProperty>
-                    </systemProperties>
+                    <executable>${java.home}/bin/java</executable>
+                    <arguments>
+                        <argument>-Dtest.all=${test.all}</argument>
+                        <argument>-Dtest.activator.start=${test.activator.start}</argument>
+                        <argument>-Dtest.common.pool=${test.common.pool}</argument>
+                        <argument>-Dtest.virtual.thread=${test.virtual.thread}</argument>
+                        <argument>-Dtest.parallel.stream=${test.parallel.stream}</argument>
+                        <argument>-Dtest.preload=${test.preload}</argument>
+                        <argument>-Dtest.user.workaround=${test.user.workaround}</argument>
+                        <argument>-Dtest.thread.factory=${test.thread.factory}</argument>
+                        <argument>-cp</argument>
+                        <classpath/>
+                        <argument>org.eclipse.equinox.examples.contextfinder.app.ReproducerApp</argument>
+                    </arguments>
                 </configuration>
             </plugin>
         </plugins>

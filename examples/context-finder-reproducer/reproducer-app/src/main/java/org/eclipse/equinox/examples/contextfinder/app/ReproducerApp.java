@@ -18,6 +18,7 @@ import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.ServiceLoader;
+import java.util.concurrent.ForkJoinPool;
 
 import org.osgi.framework.Bundle;
 import org.osgi.framework.BundleContext;
@@ -57,6 +58,29 @@ public class ReproducerApp {
 		System.out.println("Java home:    " + System.getProperty("java.home"));
 		System.out.println();
 
+		// Check if custom thread factory should be activated
+		// NOTE: The ForkJoinPool.common.threadFactory system property must be set
+		// BEFORE the ForkJoinPool class is first used, because the common pool is
+		// lazily initialized on first access. Setting it here (before any FJP use)
+		// ensures it takes effect.
+		if (Boolean.getBoolean("test.thread.factory")) {
+			String factoryClass = ContextFinderForkJoinWorkerThreadFactory.class.getName();
+			System.out.println("MITIGATION: Setting java.util.concurrent.ForkJoinPool.common.threadFactory");
+			System.out.println("  to: " + factoryClass);
+			System.out.println("  This will cause ForkJoinPool worker threads to inherit the TCCL");
+			System.out.println("  from the thread that triggers common pool initialization.");
+			System.setProperty("java.util.concurrent.ForkJoinPool.common.threadFactory", factoryClass);
+			System.out.println();
+		}
+
+		String activeFactory = System.getProperty("java.util.concurrent.ForkJoinPool.common.threadFactory");
+		if (activeFactory != null) {
+			System.out.println("ForkJoinPool.common.threadFactory: " + activeFactory);
+		} else {
+			System.out.println("ForkJoinPool.common.threadFactory: <default JDK factory>");
+		}
+		System.out.println();
+
 		// Create temp directory for OSGi storage
 		Path storageDir = Files.createTempDirectory("equinox-reproducer-");
 		System.out.println("OSGi storage: " + storageDir);
@@ -72,6 +96,8 @@ public class ReproducerApp {
 		propagateProperty(config, "test.virtual.thread");
 		propagateProperty(config, "test.parallel.stream");
 		propagateProperty(config, "test.preload");
+		propagateProperty(config, "test.user.workaround");
+		propagateProperty(config, "test.thread.factory");
 
 		// Find and create framework
 		ServiceLoader<FrameworkFactory> loader = ServiceLoader.load(FrameworkFactory.class);
@@ -87,6 +113,25 @@ public class ReproducerApp {
 			framework.start();
 			System.out.println("Framework started: " + framework.getSymbolicName() + " "
 					+ framework.getVersion());
+
+			// After framework start, the ContextFinder is set as TCCL on this thread.
+			// If we have a custom thread factory, update it with the ContextFinder TCCL
+			// so that new ForkJoinPool worker threads will inherit it.
+			if (Boolean.getBoolean("test.thread.factory")) {
+				ClassLoader contextFinderTccl = Thread.currentThread().getContextClassLoader();
+				System.out.println("Updating ForkJoinPool thread factory with ContextFinder TCCL: "
+						+ (contextFinderTccl != null ? contextFinderTccl.getClass().getName() : "null"));
+				// Access the common pool to trigger initialization and get the factory
+				ForkJoinPool commonPool = ForkJoinPool.commonPool();
+				java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory fjpFactory = commonPool.getFactory();
+				if (fjpFactory instanceof ContextFinderForkJoinWorkerThreadFactory ctxFactory) {
+					ctxFactory.setContextClassLoader(contextFinderTccl);
+				} else {
+					System.out.println("WARNING: Common pool factory is not ContextFinderForkJoinWorkerThreadFactory: "
+							+ fjpFactory.getClass().getName());
+				}
+			}
+
 			System.out.println();
 
 			BundleContext bc = framework.getBundleContext();

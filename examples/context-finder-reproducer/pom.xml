@@ -45,6 +45,15 @@
         <indriya.version>2.2.3</indriya.version>
         <osgi.version>8.0.0</osgi.version>
         <equinox.version>3.24.0</equinox.version>
+        <!-- Test control properties (defaults) -->
+        <test.all>true</test.all>
+        <test.activator.start>false</test.activator.start>
+        <test.common.pool>false</test.common.pool>
+        <test.virtual.thread>false</test.virtual.thread>
+        <test.parallel.stream>false</test.parallel.stream>
+        <test.preload>false</test.preload>
+        <test.user.workaround>false</test.user.workaround>
+        <test.thread.factory>false</test.thread.factory>
     </properties>
 
 </project>
