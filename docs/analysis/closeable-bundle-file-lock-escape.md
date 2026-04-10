@@ -318,7 +318,7 @@ releases it via `releaseOpen()` in a `finally` block.
 
 ```java
 // Before:
-refCondition.await(1000, TimeUnit.MICROSECONDS); // actually 1ms, not 1s
+refCondition.await(1000, TimeUnit.MICROSECONDS); // BUG: 1000 MICROSECONDS = 1ms, not 1s as intended
 
 // After:
 refCondition.await(1, TimeUnit.SECONDS); // properly 1 second
@@ -480,6 +480,11 @@ Options include:
 #### Stress Test: Concurrent Class Loading with MRU Pressure
 
 ```java
+/**
+ * Stress test for concurrent class loading under MRU pressure.
+ * NOTE: Sets system property osgi.bundlefile.limit; must be run in isolation
+ * or the property must be restored in an @After method.
+ */
 @Test
 void testConcurrentClassLoadingUnderMRUPressure() throws Exception {
     // Set a very low MRU limit to maximize back pressure
@@ -660,8 +665,12 @@ public static void checkForLockEscapes(Collection<CloseableBundleFile<?>> bundle
                     System.err.println("LOCK ESCAPE DETECTED: " + bf
                         + " lock held by " + owner.getName()
                         + " which is NOT in bundle file code");
-                    // Optionally: force unlock
-                    // This is dangerous but may be necessary to recover
+                    // NOTE: force unlocking a ReentrantLock not held by the current thread
+                    // is not possible via the public API — unlock() throws
+                    // IllegalMonitorStateException. Recovery would require unsafe reflection
+                    // to modify internal lock state, which is dangerous and not recommended.
+                    // Instead, log the escape for diagnosis and consider restarting the
+                    // framework or application.
                 }
             }
         }
