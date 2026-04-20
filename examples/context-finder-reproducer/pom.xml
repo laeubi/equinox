@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.eclipse.equinox.examples</groupId>
+    <artifactId>context-finder-reproducer</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+
+    <name>Issue 1243 Reproducer - ContextFinder TCCL on ForkJoinPool/Virtual Threads</name>
+    <description>
+        Standalone reproducer for https://github.com/eclipse-equinox/equinox/issues/1243
+        
+        Demonstrates that OSGi's ContextFinder is not propagated to ForkJoinPool common pool
+        threads (used by parallel streams). In Java 25, the common pool switches to
+        InnocuousForkJoinWorkerThread, making this problem more severe.
+        
+        The reproducer uses the indriya (Units of Measurement) library which internally
+        uses ServiceLoader - a TCCL-dependent mechanism - triggered during static initialization.
+        
+        Usage:
+            mvn clean verify                         # Run with default Java
+            mvn clean verify -Djava.home=/path/to/jdk25   # Run with specific JDK
+            
+        System properties to control behavior:
+            -Dtest.activator.start=true        Enable test in Activator.start()
+            -Dtest.common.pool=true            Enable test in ForkJoinPool common pool
+            -Dtest.virtual.thread=true         Enable test in virtual thread
+            -Dtest.parallel.stream=true        Enable test in parallel stream
+            -Dtest.preload=true                Pre-load the class before parallel access
+            -Dtest.all=true                    Run all tests (default)
+    </description>
+
+    <modules>
+        <module>indriya-osgi-api</module>
+        <module>indriya-osgi-bundle</module>
+        <module>reproducer-app</module>
+    </modules>
+
+    <properties>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <indriya.version>2.2.3</indriya.version>
+        <osgi.version>8.0.0</osgi.version>
+        <equinox.version>3.24.0</equinox.version>
+        <!-- Test control properties (defaults) -->
+        <test.all>true</test.all>
+        <test.activator.start>false</test.activator.start>
+        <test.common.pool>false</test.common.pool>
+        <test.virtual.thread>false</test.virtual.thread>
+        <test.parallel.stream>false</test.parallel.stream>
+        <test.preload>false</test.preload>
+        <test.user.workaround>false</test.user.workaround>
+        <test.thread.factory>false</test.thread.factory>
+    </properties>
+
+</project>
