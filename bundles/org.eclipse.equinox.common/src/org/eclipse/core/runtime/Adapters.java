@@ -15,8 +15,14 @@
  *******************************************************************************/
 package org.eclipse.core.runtime;
 
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.Set;
 import org.eclipse.core.internal.runtime.*;
 import org.eclipse.osgi.util.NLS;
 
@@ -28,6 +34,11 @@ import org.eclipse.osgi.util.NLS;
  * @since 3.8
  */
 public class Adapters {
+	/**
+	 * Maximum depth for conversion path search to prevent excessive computation.
+	 */
+	private static final int MAX_CONVERSION_DEPTH = 10;
+
 	/**
 	 * If it is possible to adapt the given object to the given type, this returns
 	 * the adapter. Performs the following checks:
@@ -138,6 +149,162 @@ public class Adapters {
 					NLS.bind(CommonMessages.adapters_internal_error_of, sourceObject.getClass().getName(), adapter.getClass().getName(), e.getLocalizedMessage()),
 					e));
 			return Optional.empty();
+		}
+	}
+
+	/**
+	 * Attempts to convert the given object to the given type by finding and
+	 * executing an adaptation path through intermediate types. This method performs
+	 * multi-hop conversions when a direct adaptation is not available.
+	 * <p>
+	 * The conversion process:
+	 * <ol>
+	 * <li>First tries direct adaptation from sourceObject to adapter type (shortcut)</li>
+	 * <li>If direct adaptation fails, searches for a conversion path through
+	 * intermediate types using a breadth-first search to find the shortest path</li>
+	 * <li>Executes the found conversion path and returns the first successful
+	 * non-null result</li>
+	 * </ol>
+	 * <p>
+	 * Note that this method may activate plug-ins if necessary to provide the
+	 * requested adapters.
+	 * </p>
+	 *
+	 * @param <T>          class type to convert to
+	 * @param sourceObject object to convert, can be null
+	 * @param adapter      type to convert to
+	 * @return a representation of sourceObject that is assignable to the adapter
+	 *         type, or null if no conversion path exists or all paths fail
+	 * @since 3.17
+	 */
+	public static <T> T convert(Object sourceObject, Class<T> adapter) {
+		if (sourceObject == null || adapter == null) {
+			return null;
+		}
+
+		// Shortcut: try direct adaptation first
+		T directResult = adapt(sourceObject, adapter, true);
+		if (directResult != null) {
+			return directResult;
+		}
+
+		// Find conversion paths using BFS
+		List<List<String>> paths = findConversionPaths(sourceObject.getClass(), adapter);
+		
+		// Try each path in order (shortest first due to BFS)
+		for (List<String> path : paths) {
+			T result = tryConversionPath(sourceObject, adapter, path);
+			if (result != null) {
+				return result;
+			}
+		}
+
+		return null;
+	}
+
+	/**
+	 * Finds conversion paths from source class to target class using breadth-first
+	 * search. Returns paths sorted by length (shortest first).
+	 * Each path contains intermediate type names (not including source or target).
+	 */
+	private static List<List<String>> findConversionPaths(Class<?> sourceClass, Class<?> targetClass) {
+		List<List<String>> allPaths = new ArrayList<>();
+		IAdapterManager manager = AdapterManager.getDefault();
+		String targetName = targetClass.getName();
+
+		// BFS to find paths - search from source to target
+		Queue<PathNode> queue = new LinkedList<>();
+		Set<String> visited = new HashSet<>();
+		
+		// Start from the source type
+		String sourceName = sourceClass.getName();
+		queue.add(new PathNode(sourceName, new ArrayList<>()));
+		visited.add(sourceName);
+
+		int currentDepth = 0;
+
+		while (!queue.isEmpty() && allPaths.isEmpty() && currentDepth < MAX_CONVERSION_DEPTH) {
+			int levelSize = queue.size();
+			List<List<String>> currentLevelPaths = new ArrayList<>();
+
+			for (int i = 0; i < levelSize; i++) {
+				PathNode current = queue.poll();
+				
+				// Get all types we can adapt to from current type
+				Class<?> currentClass;
+				try {
+					currentClass = Class.forName(current.typeName);
+				} catch (ClassNotFoundException e) {
+					// Log at debug level to aid troubleshooting
+					RuntimeLog.log(Status.info("Could not load class " + current.typeName //$NON-NLS-1$
+							+ " during conversion path search: " + e.getMessage())); //$NON-NLS-1$
+					continue;
+				}
+				
+				String[] adapterTypes = manager.computeAdapterTypes(currentClass);
+				for (String adapterType : adapterTypes) {
+					if (adapterType.equals(targetName)) {
+						// Found a path to target!
+						currentLevelPaths.add(new ArrayList<>(current.path));
+					} else if (!visited.contains(adapterType)) {
+						// Add to queue for further exploration
+						visited.add(adapterType);
+						List<String> newPath = new ArrayList<>(current.path);
+						newPath.add(adapterType);
+						queue.add(new PathNode(adapterType, newPath));
+					}
+				}
+			}
+
+			// If we found paths at this level, use them (shortest paths)
+			if (!currentLevelPaths.isEmpty()) {
+				allPaths.addAll(currentLevelPaths);
+			}
+
+			currentDepth++;
+		}
+
+		return allPaths;
+	}
+
+	/**
+	 * Tries to execute a conversion path.
+	 */
+	@SuppressWarnings("unchecked")
+	private static <T> T tryConversionPath(Object sourceObject, Class<T> targetClass, List<String> path) {
+		Object current = sourceObject;
+		
+		// Apply each intermediate conversion
+		for (String typeName : path) {
+			try {
+				Class<?> intermediateClass = Class.forName(typeName);
+				current = adapt(current, intermediateClass, true);
+				if (current == null) {
+					return null;
+				}
+			} catch (ClassNotFoundException e) {
+				// Log at debug level to aid troubleshooting
+				RuntimeLog.log(Status.info("Could not load class " + typeName //$NON-NLS-1$
+						+ " during conversion path execution: " + e.getMessage())); //$NON-NLS-1$
+				return null;
+			}
+		}
+		
+		// Final conversion to target type
+		T result = adapt(current, targetClass, true);
+		return result;
+	}
+
+	/**
+	 * Helper class for BFS path finding.
+	 */
+	private static class PathNode {
+		final String typeName;
+		final List<String> path;
+
+		PathNode(String typeName, List<String> path) {
+			this.typeName = typeName;
+			this.path = path;
 		}
 	}
 
