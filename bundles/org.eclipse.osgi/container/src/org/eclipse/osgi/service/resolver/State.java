@@ -13,6 +13,7 @@
  *******************************************************************************/
 package org.eclipse.osgi.service.resolver;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Dictionary;
 import java.util.List;
@@ -490,6 +491,24 @@ public interface State {
 	 * @see org.osgi.service.packageadmin.PackageAdmin#getExportedPackages(org.osgi.framework.Bundle)
 	 */
 	public ExportPackageDescription[] getExportedPackages();
+
+	/**
+	 * Returns the exported packages in this state with the given package name,
+	 * according to the OSGi rules for resolution.
+	 *
+	 * @param packageName name of the packages to query
+	 * @return the exported packages with the given name, never <code>null</code>
+	 * @since 3.25
+	 */
+	public default ExportPackageDescription[] getExportedPackages(String packageName) {
+		List<ExportPackageDescription> result = new ArrayList<>();
+		for (ExportPackageDescription export : getExportedPackages()) {
+			if (export.getName().equals(packageName)) {
+				result.add(export);
+			}
+		}
+		return result.toArray(new ExportPackageDescription[0]);
+	}
 
 	/**
 	 * Returns all bundle descriptions with the given bundle symbolic name.

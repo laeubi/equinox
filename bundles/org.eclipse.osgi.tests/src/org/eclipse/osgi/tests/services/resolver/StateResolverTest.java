@@ -132,6 +132,16 @@ public class StateResolverTest extends AbstractStateTest {
 	}
 
 	@Test
+	public void testGetExportedPackagesByName() throws BundleException {
+		State state = buildSimpleState();
+		state.resolve();
+		ExportPackageDescription[] p1 = state.getExportedPackages("org.eclipse.p1"); //$NON-NLS-1$
+		assertEquals("1.0", 1, p1.length); //$NON-NLS-1$
+		assertEquals("1.1", state.getBundle(1), p1[0].getExporter()); //$NON-NLS-1$
+		assertEquals("2.0", 0, state.getExportedPackages("org.eclipse.p3").length); //$NON-NLS-1$
+	}
+
+	@Test
 	public void testBasicResolution() throws BundleException {
 		State state = buildSimpleState();
 		StateDelta delta = state.resolve();

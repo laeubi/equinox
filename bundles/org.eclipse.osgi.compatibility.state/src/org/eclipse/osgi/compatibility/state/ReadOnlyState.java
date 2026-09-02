@@ -75,6 +75,11 @@ public final class ReadOnlyState implements State {
 	}
 
 	@Override
+	public ExportPackageDescription[] getExportedPackages(String packageName) {
+		return platformAdmin.getSystemState().getExportedPackages(packageName);
+	}
+
+	@Override
 	public StateObjectFactory getFactory() {
 		return platformAdmin.getSystemState().getFactory();
 	}

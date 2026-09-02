@@ -837,6 +837,31 @@ public abstract class StateImpl implements State {
 		}
 	}
 
+	@Override
+	public ExportPackageDescription[] getExportedPackages(String packageName) {
+		fullyLoad();
+		synchronized (this.monitor) {
+			List<ExportPackageDescription> result = new ArrayList<>();
+			addSelectedExports(resolvedBundles.values(), packageName, result);
+			addSelectedExports(removalPendings, packageName, result);
+			return result.toArray(new ExportPackageDescription[result.size()]);
+		}
+	}
+
+	private static void addSelectedExports(Collection<BundleDescription> bundles, String packageName, List<ExportPackageDescription> result) {
+		for (BundleDescription bundle : bundles) {
+			ExportPackageDescription[] bundlePackages = bundle.getSelectedExports();
+			if (bundlePackages == null) {
+				continue;
+			}
+			for (ExportPackageDescription export : bundlePackages) {
+				if (export.getName().equals(packageName)) {
+					result.add(export);
+				}
+			}
+		}
+	}
+
 	private static final Comparator<BundleDescription> BY_BUNDLE_ID = Comparator.comparingLong(BundleDescription::getBundleId);
 
 	BundleDescription[] getFragments(final BundleDescription host) {
