@@ -143,7 +143,7 @@ class ServiceLoaderMediatorTest {
 	void serviceLoadFromFragmentProvider() throws Exception {
 
 		installEmptyBundle("a.bundle5");
-		installSimpleProvider("service.provider.fragment5", "val500", "Fragment-Host: a.bundle");
+		installSimpleProvider("service.provider.fragment5", "val500", "Fragment-Host: a.bundle5");
 
 		installSimpleConsumer("service.consumer5");
 
@@ -155,7 +155,7 @@ class ServiceLoaderMediatorTest {
 	void registrationAsOSGiServiceFromFragmentProvider() throws Exception {
 
 		Bundle providerHost = installEmptyBundle("a.bundle6");
-		installSimpleProvider("service.provider.fragment6", "val600", "Fragment-Host: a.bundle");
+		installSimpleProvider("service.provider.fragment6", "val600", "Fragment-Host: a.bundle6");
 
 		assertThatOSGiServiceIsNotAvailable();
 
@@ -168,7 +168,7 @@ class ServiceLoaderMediatorTest {
 	void unregistrationAsOSGiServiceFromFragmentProvider() throws Exception {
 		Bundle providerHost = installEmptyBundle("a.bundle7");
 		startBundle(providerHost);
-		installSimpleProvider("service.provider.fragment7", "val700", "Fragment-Host: a.bundle");
+		installSimpleProvider("service.provider.fragment7", "val700", "Fragment-Host: a.bundle7");
 
 		assertThatOSGiServiceIsAvailable();
 
@@ -183,7 +183,7 @@ class ServiceLoaderMediatorTest {
 
 		// Add Service-Component header to host, since they are ignored on fragments
 		installEmptyBundle("a.bundle8", "Bundle-ActivationPolicy: lazy", "Service-Component: OSGI-INF/*.xml");
-		installSimpleConsumer("service.consumer.fragment8", "Fragment-Host: a.bundle");
+		installSimpleConsumer("service.consumer.fragment8", "Fragment-Host: a.bundle8");
 
 		TestServiceConsumer serviceConsumer = getTestServiceConsumer();
 		assertServiceIsPresent(serviceConsumer, "val800");
