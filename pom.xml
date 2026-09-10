@@ -173,6 +173,7 @@
 								</properties>
 								<bndRunProperties>
 									<_runpath>org.eclipse.equinox.spi</_runpath>
+									<_runsystemcapabilities>osgi.wiring.host;osgi.wiring.host=org.eclipse.osgi;bundle-version:Version=3.24.0</_runsystemcapabilities>
 								</bndRunProperties>
 							</configuration>
 						</execution>
