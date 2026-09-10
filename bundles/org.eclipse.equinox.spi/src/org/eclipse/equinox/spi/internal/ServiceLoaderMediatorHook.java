@@ -57,6 +57,27 @@ import org.osgi.util.tracker.BundleTrackerCustomizer;
 
 public class ServiceLoaderMediatorHook extends ClassLoaderHook implements BundleTrackerCustomizer<Bundle> {
 
+	// NOTE on a known JVM-level limitation (not fixable in this hook):
+	// Consumers typically call java.util.ServiceLoader.load(Class), which resolves
+	// each provider-implementation class via Class.forName(name, false, loader),
+	// where 'loader' is the calling thread's context class loader (typically the
+	// framework-wide, long-lived org.eclipse.osgi.internal.framework.ContextFinder).
+	// The JVM caches that name-to-Class mapping for as long as the *initiating*
+	// loader instance (i.e. that ContextFinder) is alive - regardless of whether the
+	// bundle that originally provided the class is later uninstalled. This hook is
+	// never consulted again for that (name, loader) pair, since Class.forName finds
+	// the cached mapping before delegating to the loader's loadClass(..) method.
+	// Consequence: if a provider bundle offering a class 'p.C' is uninstalled and,
+	// later in the same framework/thread-context-class-loader session, a *different*
+	// provider bundle offers a class with the very same fully-qualified name 'p.C',
+	// consumers using ServiceLoader.load(Class) may keep observing the stale, no
+	// longer valid Class from the first provider (which can then throw
+	// java.lang.IllegalStateException: Bundle has been uninstalled once used).
+	// There is no supported way to "unload"/evict such a per-initiating-loader JVM
+	// class binding, so this can only be avoided by giving provider implementation
+	// classes that may replace one another over a framework's lifetime distinct
+	// fully-qualified names.
+
 	static final String SERVICE_NAME_PREFIX = "META-INF/services/"; //$NON-NLS-1$
 
 	static String serviceNameFromPath(String path) {

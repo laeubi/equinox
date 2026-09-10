@@ -39,9 +39,7 @@ import org.eclipse.equinox.spi.tests.impl.TestServiceImpl;
 import org.eclipse.equinox.spi.tests.service.TestService;
 import org.eclipse.equinox.spi.tests.service.TestServiceConsumer;
 import org.eclipse.osgi.internal.framework.ContextFinder;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -58,24 +56,31 @@ import org.osgi.util.tracker.ServiceTracker;
 
 class ServiceLoaderMediatorTest {
 
-	private static ClassLoader originalTCCL;
+	private ClassLoader originalTCCL;
 
 	private static Bundle aBundle = FrameworkUtil.getBundle(ServiceLoaderMediatorTest.class);
 
-	@BeforeAll
-	static void setTCCL() {
+	@BeforeEach
+	void setTCCL() {
 		// In PDE Plug-in tests the Context Classloader is set by PDE to enable JUnit.
 		// For this test, set it back to the usual default ContextFinder.
+		// A fresh ContextFinder is created for every test (rather than reusing the
+		// framework's single, long-lived instance) because java.util.ServiceLoader
+		// resolves provider classes via Class.forName(name, false, loader) using
+		// the thread's context class loader as initiating loader. The JVM caches
+		// that name-to-Class mapping for the lifetime of the initiating loader
+		// instance, so a long-lived, shared ContextFinder would keep returning a
+		// stale (possibly already uninstalled) provider class if a later test
+		// installs a different provider bundle exposing a class with the same
+		// fully-qualified name. Using a new ContextFinder per test avoids that.
 		originalTCCL = Thread.currentThread().getContextClassLoader();
-		BundleContext bundleContext = aBundle.getBundleContext();
-		ServiceReference<ClassLoader> reference = bundleContext.getServiceReference(ClassLoader.class);
 		@SuppressWarnings("restriction")
-		ContextFinder contextFinder = (ContextFinder) bundleContext.getService(reference);
+		ContextFinder contextFinder = new ContextFinder(originalTCCL, ClassLoader.getSystemClassLoader());
 		Thread.currentThread().setContextClassLoader(contextFinder);
 	}
 
-	@AfterAll
-	static void resetTCCL() {
+	@AfterEach
+	void resetTCCL() {
 		Thread.currentThread().setContextClassLoader(originalTCCL);
 	}
 
