@@ -80,6 +80,10 @@
 			<!-- Placeholder capability so bndRunProperties always has a non-blank value for modules
 			     that don't need to override it (see org.eclipse.equinox.spi's build.properties) -->
 			<tck.runsystemcapabilities>osgi.wiring.host;osgi.wiring.host=none</tck.runsystemcapabilities>
+			<!-- Placeholder so bndRunProperties always has a non-blank value for modules that don't
+			     need to add anything to the framework's own classpath via -runpath
+			     (see org.eclipse.equinox.spi's build.properties) -->
+			<tck.runpath>biz.aQute.tester.junit-platform</tck.runpath>
 		</properties>
 		<build>
 			<plugins>
@@ -176,6 +180,7 @@
 								</properties>
 								<bndRunProperties>
 									<_runsystemcapabilities>${tck.runsystemcapabilities}</_runsystemcapabilities>
+									<_runpath>${tck.runpath}</_runpath>
 								</bndRunProperties>
 							</configuration>
 						</execution>
