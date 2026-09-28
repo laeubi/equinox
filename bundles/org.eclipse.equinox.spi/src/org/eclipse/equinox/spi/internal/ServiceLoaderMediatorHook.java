@@ -375,7 +375,10 @@ public class ServiceLoaderMediatorHook extends ClassLoaderHook implements Bundle
 
 		BundleWiring wiring = classLoader.getBundle().adapt(BundleWiring.class); // never a fragment
 		List<BundleWire> requiredWires = wiring.getRequiredWires(ServiceLoaderNamespace.SERVICELOADER_NAMESPACE);
-		if (requiredWires != null) {
+		// getRequiredWires() returns an empty (not null) list when there simply are no
+		// requirements in this namespace, so only restrict visibility if there
+		// actually are wires to restrict to.
+		if (requiredWires != null && !requiredWires.isEmpty()) {
 			// Consider section 133.3.3 Restricting Visibility and only consider providers
 			// wired to the consumer via the required capability or all if the consumer
 			// doesn't have the visibility restricted
